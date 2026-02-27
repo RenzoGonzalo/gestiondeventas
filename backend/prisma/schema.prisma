@@ -1,0 +1,69 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Empresa {
+  id        String   @id @default(uuid())
+  nombre    String
+  ruc       String?  @unique
+  activa    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  usuarios Usuario[]
+
+  @@map("empresas")
+}
+
+model Usuario {
+  id        String   @id @default(uuid())
+  empresaId String?  @map("empresa_id")
+  email     String   @unique
+  password  String
+  nombre    String
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  empresa     Empresa?     @relation(fields: [empresaId], references: [id])
+  usuarioRols UsuarioRol[]
+
+  @@index([empresaId])
+  @@map("usuarios")
+}
+
+model Rol {
+  id          String   @id @default(uuid())
+  nombre      String   @unique
+  descripcion String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  usuarioRols UsuarioRol[]
+
+  @@map("roles")
+}
+
+model UsuarioRol {
+  id          String   @id @default(uuid())
+  usuarioId   String   @map("usuario_id")
+  rolId       String   @map("rol_id")
+  asignadoPor String   @map("asignado_por")
+  asignadoEn  DateTime @default(now()) @map("asignado_en")
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  rol     Rol     @relation(fields: [rolId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, rolId])
+  @@map("usuario_roles")
+}
