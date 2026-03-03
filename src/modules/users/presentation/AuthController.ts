@@ -1,33 +1,97 @@
 import { Request, Response } from "express";
-import { LoginUseCase } from "../application/LoginUseCase";
 import { PrismaUserRepository } from "../infrastructure/PrismaUserRepository";
+import { PrismaRoleRepository } from "../infrastructure/PrismaRoleRepository";
+import { BcryptPasswordService } from "../infrastructure/services/BcryptPasswordService";
+import { JwtTokenService } from "../infrastructure/services/JwtTokenService";
+import { RegisterUseCase } from "../application/RegisterUseCase";
+import { LoginUseCase } from "../application/LoginUseCase";
+import { PrismaCompanyRepository } from "../../companies/infrastructure/PrismaCompanyRepository";
+import { ProvisionCompanyAndStoreAdminUseCase } from "../../../shared/application/ProvisionCompanyAndStoreAdminUseCase";
+import { AppError } from "../../../shared/application/errors/AppError";
 
-// El Controlador se encarga de recibir pedidos HTTP y enviar respuestas
 export class AuthController {
-  // Inyectamos el Repositorio de Prisma para su uso dentro del caso de uso
-  private static userRepository = new PrismaUserRepository();
-  private static loginUseCase = new LoginUseCase(this.userRepository);
-
-  // Método estático para manejar el login vía HTTP POST
-  static async login(req: Request, res: Response): Promise<void> {
+  async register(req: Request, res: Response) {
     try {
-      // 1. Extraemos el correo y clave del cuerpo de la petición (JSON)
-      const { email, password } = req.body;
+      const { email, password, roleName, companyId } = req.body;
 
-      // Validamos que se envíen ambos campos
-      if (!email || !password) {
-        res.status(400).json({ error: "Email y contraseña son obligatorios" });
-        return;
+      const userRepository = new PrismaUserRepository();
+      const roleRepository = new PrismaRoleRepository();
+      const passwordService = new BcryptPasswordService();
+
+      const useCase = new RegisterUseCase(
+        userRepository,
+        roleRepository,
+        passwordService
+      );
+
+      const result = await useCase.execute({
+        email,
+        password,
+        roleName: roleName ?? "SELLER",
+        companyId: companyId ?? null
+      });
+
+      return res.status(201).json(result);
+    } catch (error: any) {
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json({ message: error.message });
       }
 
-      // 2. Ejecutamos el caso de uso
-      const result = await AuthController.loginUseCase.execute(email, password);
+      return res.status(400).json({ message: error.message });
+    }
+  }
 
-      // 3. Si todo va bien, devolvemos un 200 con el usuario y token
-      res.status(200).json(result);
+  async login(req: Request, res: Response) {
+    try {
+      const { email, password } = req.body;
+
+      const userRepository = new PrismaUserRepository();
+      const passwordService = new BcryptPasswordService();
+      const tokenService = new JwtTokenService();
+
+      const useCase = new LoginUseCase(
+        userRepository,
+        passwordService,
+        tokenService
+      );
+
+      const result = await useCase.execute(email, password);
+
+      return res.status(200).json(result);
     } catch (error: any) {
-      // 4. Si el login falla por credenciales u otros motivos, enviamos un 401
-      res.status(401).json({ error: error.message });
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json({ message: error.message });
+      }
+
+      return res.status(401).json({ message: error.message });
+    }
+  }
+
+  async provisionCompany(req: Request, res: Response) {
+    try {
+      const { company, admin } = req.body;
+
+      const companyRepository = new PrismaCompanyRepository();
+      const userRepository = new PrismaUserRepository();
+      const roleRepository = new PrismaRoleRepository();
+      const passwordService = new BcryptPasswordService();
+
+      const useCase = new ProvisionCompanyAndStoreAdminUseCase({
+        companyRepository,
+        userRepository,
+        roleRepository,
+        passwordService
+      });
+
+      const result = await useCase.execute({ company, admin });
+
+      return res.status(201).json(result);
+    } catch (error: any) {
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json({ message: error.message });
+      }
+
+      return res.status(400).json({ message: error.message });
     }
   }
 }
