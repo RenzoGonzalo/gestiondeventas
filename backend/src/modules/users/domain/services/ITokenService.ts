@@ -1,4 +1,8 @@
 export interface ITokenService {
-  generateToken(payload: any): string;
-  verifyToken(token: string): any;
+  generate(payload: {
+    id: string;
+    email: string;
+    companyId: string | null;
+    roleName: string;
+  }): string;
 }
