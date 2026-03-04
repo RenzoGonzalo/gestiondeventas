@@ -24,7 +24,7 @@ function authMiddleware(req, res, next) {
     }
 }
 function requireSuperAdmin(req, res, next) {
-    if (!req.user || req.user.roleName !== "SUPER_ADMIN") {
+    if (!req.user || !Array.isArray(req.user.roles) || !req.user.roles.includes("SUPER_ADMIN")) {
         return res
             .status(403)
             .json({ message: "No autorizado: requiere rol SUPER_ADMIN" });
@@ -32,7 +32,7 @@ function requireSuperAdmin(req, res, next) {
     next();
 }
 function requireStoreAdmin(req, res, next) {
-    if (!req.user || req.user.roleName !== "STORE_ADMIN") {
+    if (!req.user || !Array.isArray(req.user.roles) || !req.user.roles.includes("STORE_ADMIN")) {
         return res
             .status(403)
             .json({ message: "No autorizado: requiere rol STORE_ADMIN" });

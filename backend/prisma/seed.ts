@@ -22,14 +22,27 @@ async function main() {
   const superAdminRole = roleObjects.find(r => r.name === 'SUPER_ADMIN');
   const hashedAdminPassword = await bcrypt.hash('admin123456', 10);
 
-  await prisma.user.upsert({
+  const superAdminUser = await prisma.user.upsert({
     where: { email: 'superadmin@plataforma.com' },
     update: {},
     create: {
       email: 'superadmin@plataforma.com',
       password: hashedAdminPassword,
-      roleId: superAdminRole!.id,
       // No tiene companyId porque es el dueño global
+    },
+  });
+
+  await prisma.userRole.upsert({
+    where: {
+      userId_roleId: {
+        userId: superAdminUser.id,
+        roleId: superAdminRole!.id,
+      },
+    },
+    update: {},
+    create: {
+      userId: superAdminUser.id,
+      roleId: superAdminRole!.id,
     },
   });
 

@@ -5,7 +5,7 @@ export interface UserRepository {
   create(data: {
     email: string;
     password: string;
-    roleId: string;
+    roleIds: string[];
     companyId?: string | null;
   }): Promise<User>;
 }

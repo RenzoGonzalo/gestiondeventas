@@ -8,7 +8,7 @@ export class PrismaUserRepository implements UserRepository {
   async findByEmail(email: string): Promise<User | null> {
     const userData = await prisma.user.findUnique({
       where: { email },
-      include: { role: true }
+      include: { roles: { include: { role: true } } }
     });
 
     if (!userData) return null;
@@ -18,9 +18,8 @@ export class PrismaUserRepository implements UserRepository {
       userData.id,
       userData.email,
       userData.password,
-      userData.roleId,
-      userData.role.name,
       userData.companyId ?? null,
+      userData.roles.map((ur) => ur.role.name),
       userData.createdAt,
       userData.updatedAt
     );
@@ -29,26 +28,27 @@ export class PrismaUserRepository implements UserRepository {
   async create(data: {
     email: string;
     password: string;
-    roleId: string;
+    roleIds: string[];
     companyId?: string | null;
   }): Promise<User> {
     const newUser = await prisma.user.create({
       data: {
         email: data.email,
         password: data.password,
-        roleId: data.roleId,
-        companyId: data.companyId ?? null
+        companyId: data.companyId ?? null,
+        roles: {
+          create: data.roleIds.map((roleId) => ({ roleId }))
+        }
       },
-      include: { role: true }
+      include: { roles: { include: { role: true } } }
     });
 
     return new User(
       newUser.id,
       newUser.email,
       newUser.password,
-      newUser.roleId,
-      newUser.role.name,
       newUser.companyId ?? null,
+      newUser.roles.map((ur) => ur.role.name),
       newUser.createdAt,
       newUser.updatedAt
     );

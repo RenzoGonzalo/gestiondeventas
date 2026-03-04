@@ -3,6 +3,6 @@ export interface ITokenService {
     id: string;
     email: string;
     companyId: string | null;
-    roleName: string;
+    roles: string[];
   }): string;
 }

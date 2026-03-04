@@ -15,7 +15,8 @@ export class LoginUseCase {
 
     if (!user) throw new UnauthorizedError("Credenciales inválidas");
 
-    if (user.roleName !== "SUPER_ADMIN" && user.roleName !== "STORE_ADMIN") {
+    const canLogin = user.roles.includes("SUPER_ADMIN") || user.roles.includes("STORE_ADMIN");
+    if (!canLogin) {
       throw new ForbiddenError("No autorizado para iniciar sesión");
     }
 
@@ -30,7 +31,7 @@ export class LoginUseCase {
       id: user.id,
       email: user.email,
       companyId: user.companyId,
-      roleName: user.roleName
+      roles: user.roles
     });
     
     
@@ -41,10 +42,10 @@ export class LoginUseCase {
         id: user.id,
         email: user.email,
         companyId: user.companyId,
-        roleName: user.roleName
+        roles: user.roles
       },
       redirectTo:
-        user.roleName === "STORE_ADMIN" && user.companyId
+        user.roles.includes("STORE_ADMIN") && user.companyId
           ? `/companies/${user.companyId}`
           : null
     };
