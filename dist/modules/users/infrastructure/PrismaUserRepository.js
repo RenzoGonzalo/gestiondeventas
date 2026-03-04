@@ -11,24 +11,26 @@ class PrismaUserRepository {
     async findByEmail(email) {
         const userData = await prisma_1.default.user.findUnique({
             where: { email },
-            include: { role: true }
+            include: { roles: { include: { role: true } } }
         });
         if (!userData)
             return null;
         // EL MAPEO: Convertimos el modelo de Prisma a tu Entidad de Dominio
-        return new User_1.User(userData.id, userData.email, userData.password, userData.roleId, userData.role.name, userData.companyId ?? null, userData.createdAt, userData.updatedAt);
+        return new User_1.User(userData.id, userData.email, userData.password, userData.companyId ?? null, userData.roles.map((ur) => ur.role.name), userData.createdAt, userData.updatedAt);
     }
     async create(data) {
         const newUser = await prisma_1.default.user.create({
             data: {
                 email: data.email,
                 password: data.password,
-                roleId: data.roleId,
-                companyId: data.companyId ?? null
+                companyId: data.companyId ?? null,
+                roles: {
+                    create: data.roleIds.map((roleId) => ({ roleId }))
+                }
             },
-            include: { role: true }
+            include: { roles: { include: { role: true } } }
         });
-        return new User_1.User(newUser.id, newUser.email, newUser.password, newUser.roleId, newUser.role.name, newUser.companyId ?? null, newUser.createdAt, newUser.updatedAt);
+        return new User_1.User(newUser.id, newUser.email, newUser.password, newUser.companyId ?? null, newUser.roles.map((ur) => ur.role.name), newUser.createdAt, newUser.updatedAt);
     }
 }
 exports.PrismaUserRepository = PrismaUserRepository;

@@ -21,14 +21,14 @@ class RegisterUseCase {
         const user = await this.userRepository.create({
             email,
             password: hashed,
-            roleId: role.id,
+            roleIds: [role.id],
             companyId: input.companyId ?? null
         });
         return {
             id: user.id,
             email: user.email,
-            roleId: user.roleId,
-            companyId: user.companyId
+            companyId: user.companyId,
+            roles: user.roles
         };
     }
 }

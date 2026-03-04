@@ -9,7 +9,7 @@ type JwtPayload = {
   id: string;
   email: string;
   companyId: string | null;
-  roleName: string;
+  roles: string[];
   iat?: number;
   exp?: number;
 };
@@ -45,7 +45,7 @@ export function requireSuperAdmin(
   res: Response,
   next: NextFunction
 ) {
-  if (!req.user || req.user.roleName !== "SUPER_ADMIN") {
+  if (!req.user || !Array.isArray(req.user.roles) || !req.user.roles.includes("SUPER_ADMIN")) {
     return res
       .status(403)
       .json({ message: "No autorizado: requiere rol SUPER_ADMIN" });
@@ -59,7 +59,7 @@ export function requireStoreAdmin(
   res: Response,
   next: NextFunction
 ) {
-  if (!req.user || req.user.roleName !== "STORE_ADMIN") {
+  if (!req.user || !Array.isArray(req.user.roles) || !req.user.roles.includes("STORE_ADMIN")) {
     return res
       .status(403)
       .json({ message: "No autorizado: requiere rol STORE_ADMIN" });

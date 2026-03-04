@@ -22,7 +22,7 @@ model Company {
 model Role {
   id    String @id @default(uuid())
   name  String @unique
-  users User[]
+  users UserRole[]
 
   @@map("roles")
 }
@@ -31,12 +31,22 @@ model User {
   id        String   @id @default(uuid())
   email     String   @unique
   password  String
-  roleId    String
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
   companyId String?
   company   Company? @relation(fields: [companyId], references: [id])
-  role      Role     @relation(fields: [roleId], references: [id])
+  roles     UserRole[]
 
   @@map("users")
+}
+
+model UserRole {
+  userId String
+  roleId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@map("user_roles")
 }

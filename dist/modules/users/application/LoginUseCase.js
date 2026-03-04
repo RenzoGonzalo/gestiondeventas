@@ -12,7 +12,8 @@ class LoginUseCase {
         const user = await this.userRepository.findByEmail(email);
         if (!user)
             throw new AppError_1.UnauthorizedError("Credenciales inválidas");
-        if (user.roleName !== "SUPER_ADMIN" && user.roleName !== "STORE_ADMIN") {
+        const canLogin = user.roles.includes("SUPER_ADMIN") || user.roles.includes("STORE_ADMIN");
+        if (!canLogin) {
             throw new AppError_1.ForbiddenError("No autorizado para iniciar sesión");
         }
         const valid = await this.passwordService.compare(password, user.password);
@@ -22,7 +23,7 @@ class LoginUseCase {
             id: user.id,
             email: user.email,
             companyId: user.companyId,
-            roleName: user.roleName
+            roles: user.roles
         });
         return {
             token,
@@ -30,9 +31,9 @@ class LoginUseCase {
                 id: user.id,
                 email: user.email,
                 companyId: user.companyId,
-                roleName: user.roleName
+                roles: user.roles
             },
-            redirectTo: user.roleName === "STORE_ADMIN" && user.companyId
+            redirectTo: user.roles.includes("STORE_ADMIN") && user.companyId
                 ? `/companies/${user.companyId}`
                 : null
         };
