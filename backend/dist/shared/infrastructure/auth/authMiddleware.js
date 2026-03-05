@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.authMiddleware = authMiddleware;
 exports.requireSuperAdmin = requireSuperAdmin;
 exports.requireStoreAdmin = requireStoreAdmin;
+exports.requireAnyRole = requireAnyRole;
 exports.requireSameCompanyFromParam = requireSameCompanyFromParam;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 function authMiddleware(req, res, next) {
@@ -38,6 +39,19 @@ function requireStoreAdmin(req, res, next) {
             .json({ message: "No autorizado: requiere rol STORE_ADMIN" });
     }
     next();
+}
+function requireAnyRole(allowedRoles) {
+    return (req, res, next) => {
+        const roles = req.user?.roles;
+        if (!Array.isArray(roles)) {
+            return res.status(403).json({ message: "No autorizado" });
+        }
+        const ok = allowedRoles.some((r) => roles.includes(r));
+        if (!ok) {
+            return res.status(403).json({ message: "No autorizado" });
+        }
+        next();
+    };
 }
 function requireSameCompanyFromParam(paramName) {
     return (req, res, next) => {

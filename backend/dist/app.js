@@ -7,11 +7,13 @@ const express_1 = __importDefault(require("express"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const authRouter_1 = __importDefault(require("./modules/users/presentation/authRouter"));
 const companyRouter_1 = __importDefault(require("./modules/companies/presentation/companyRouter"));
+const inventoryRouter_1 = __importDefault(require("./modules/inventory/presentation/inventoryRouter"));
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 app.use(express_1.default.json());
 app.use("/auth", authRouter_1.default);
 app.use("/companies", companyRouter_1.default);
+app.use("/api", inventoryRouter_1.default);
 const port = Number(process.env.PORT) || 4000;
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);

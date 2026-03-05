@@ -68,6 +68,23 @@ export function requireStoreAdmin(
   next();
 }
 
+export function requireAnyRole(allowedRoles: string[]) {
+  return (req: AuthRequest, res: Response, next: NextFunction) => {
+    const roles: unknown = req.user?.roles;
+
+    if (!Array.isArray(roles)) {
+      return res.status(403).json({ message: "No autorizado" });
+    }
+
+    const ok = allowedRoles.some((r) => roles.includes(r));
+    if (!ok) {
+      return res.status(403).json({ message: "No autorizado" });
+    }
+
+    next();
+  };
+}
+
 export function requireSameCompanyFromParam(paramName: string) {
   return (req: AuthRequest, res: Response, next: NextFunction) => {
     const requestedCompanyId = req.params?.[paramName];
