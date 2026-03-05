@@ -7,6 +7,16 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ENUM para Unidades de Medida
+enum UnitType {
+  UND // Unidad (martillos, palas, clavos por unidad)
+  KGS // Kilogramos (clavos al peso, alambre, arena)
+  MTS // Metros (cables, mangueras, tubos)
+  BOL // Bolsas (cemento, yeso, cal)
+  LTS // Litros (pintura, thinner)
+  GLB // Global (servicios, transporte)
+}
+
 model Company {
   id        String   @id @default(uuid())
   name      String
@@ -15,8 +25,117 @@ model Company {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
   users     User[]
+  categories Category[]
+  products   Product[]
+  variants   Variant[]
+  stockMoves StockMovement[]
 
   @@map("companies")
+}
+
+model Category {
+  id          String  @id @default(uuid())
+  companyId   String
+  company     Company @relation(fields: [companyId], references: [id])
+
+  nombre      String
+  descripcion String?
+  activo      Boolean @default(true)
+
+  products    Product[]
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@unique([companyId, nombre])
+  @@map("categories")
+}
+
+model Product {
+  id          String   @id @default(uuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+
+  nombre      String
+  descripcion String?
+  imagen      String?
+  activo      Boolean  @default(true)
+
+  categoryId  String
+  category    Category @relation(fields: [categoryId], references: [id])
+
+  // Atributos que tendrán las variantes (ej: ["diametro", "largo"])
+  atributos   Json     @default("[]")
+
+  // Unidad base de referencia
+  unitType    UnitType @default(UND)
+
+  variantes   Variant[]
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("products")
+}
+
+model Variant {
+  id           String   @id @default(uuid())
+  companyId    String
+  company      Company  @relation(fields: [companyId], references: [id])
+  productId    String
+  product      Product  @relation(fields: [productId], references: [id])
+
+  // Identificación
+  nombre       String
+  sku          String
+  codigoBarras String?  @unique
+
+  // Atributos específicos de esta variante
+  atributos    Json
+
+  // Unidad de medida (puede diferir del producto base)
+  unitType     UnitType @default(UND)
+
+  // Precios
+  precioCompra Decimal  @db.Decimal(10, 2)
+  precioVenta  Decimal  @db.Decimal(10, 2)
+
+  // Stock
+  stockActual  Decimal  @db.Decimal(10, 2) @default(0)
+  stockMinimo  Decimal  @db.Decimal(10, 2) @default(5)
+  ubicacion    String?
+
+  activo       Boolean  @default(true)
+  creadoPor    String
+
+  movimientos  StockMovement[]
+
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@unique([productId, sku])
+  @@map("variants")
+}
+
+model StockMovement {
+  id           String   @id @default(uuid())
+  companyId    String
+  company      Company  @relation(fields: [companyId], references: [id])
+  variantId    String
+  variant      Variant  @relation(fields: [variantId], references: [id])
+
+  tipo         String
+  cantidad     Decimal  @db.Decimal(10, 2)
+  stockAnterior Decimal @db.Decimal(10, 2)
+  stockNuevo   Decimal  @db.Decimal(10, 2)
+  motivo       String?
+
+  saleId       String?
+  usuarioId    String
+
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("stock_movements")
 }
 
 model Role {
