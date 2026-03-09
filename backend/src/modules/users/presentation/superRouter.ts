@@ -1,10 +1,14 @@
 import { Router } from "express";
-import { SuperAdminController } from "./SuperAdminController";
 import { authMiddleware, requireSuperAdmin } from "../../../shared/infrastructure/auth/authMiddleware";
+import { superAdminController } from "../user.dependencies";
 
 const router = Router();
-const controller = new SuperAdminController();
 
-router.post("/companies", authMiddleware, requireSuperAdmin, controller.provisionCompany);
+router.post(
+	"/companies",
+	authMiddleware,
+	requireSuperAdmin,
+	superAdminController.provisionCompany
+);
 
 export default router;

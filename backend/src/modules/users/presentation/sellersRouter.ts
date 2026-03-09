@@ -1,10 +1,9 @@
 import { Router } from "express";
-import { SellersController } from "./SellersController";
 import { authMiddleware, requireStoreAdmin } from "../../../shared/infrastructure/auth/authMiddleware";
+import { sellersController } from "../user.dependencies";
 
 const router = Router();
-const controller = new SellersController();
 
-router.post("/", authMiddleware, requireStoreAdmin, controller.create);
+router.post("/", authMiddleware, requireStoreAdmin, sellersController.create);
 
 export default router;
