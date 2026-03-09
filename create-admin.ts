@@ -12,6 +12,7 @@ const supabase = createClient(
 async function createSuperAdmin() {
   const email = 'renzoquispe@gmail.com'
   const password = '123456789'
+  const nombre = 'Super Admin'
   const hashedPassword = await bcrypt.hash(password, 10)
 
   console.log('Intentando crear Super Admin via HTTP API...')
@@ -21,6 +22,7 @@ async function createSuperAdmin() {
     .insert([
       { 
         email: email, 
+        nombre: nombre,
         password: hashedPassword,
         created_at: new Date(),
         updated_at: new Date()

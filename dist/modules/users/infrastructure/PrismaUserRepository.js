@@ -9,19 +9,20 @@ const prisma_1 = __importDefault(require("../../../shared/infrastructure/persist
 const User_1 = require("../domain/User"); // <--- Importas TU clase de dominio
 class PrismaUserRepository {
     async findByEmail(email) {
-        const userData = await prisma_1.default.user.findUnique({
+        const userData = (await prisma_1.default.user.findUnique({
             where: { email },
             include: { roles: { include: { role: true } } }
-        });
+        }));
         if (!userData)
             return null;
         // EL MAPEO: Convertimos el modelo de Prisma a tu Entidad de Dominio
-        return new User_1.User(userData.id, userData.email, userData.password, userData.companyId ?? null, userData.roles.map((ur) => ur.role.name), userData.createdAt, userData.updatedAt);
+        return new User_1.User(userData.id, userData.email, userData.nombre, userData.password, userData.companyId ?? null, userData.roles.map((ur) => ur.role.name), userData.createdAt, userData.updatedAt);
     }
     async create(data) {
-        const newUser = await prisma_1.default.user.create({
+        const newUser = (await prisma_1.default.user.create({
             data: {
                 email: data.email,
+                nombre: data.nombre,
                 password: data.password,
                 companyId: data.companyId ?? null,
                 roles: {
@@ -29,8 +30,8 @@ class PrismaUserRepository {
                 }
             },
             include: { roles: { include: { role: true } } }
-        });
-        return new User_1.User(newUser.id, newUser.email, newUser.password, newUser.companyId ?? null, newUser.roles.map((ur) => ur.role.name), newUser.createdAt, newUser.updatedAt);
+        }));
+        return new User_1.User(newUser.id, newUser.email, newUser.nombre, newUser.password, newUser.companyId ?? null, newUser.roles.map((ur) => ur.role.name), newUser.createdAt, newUser.updatedAt);
     }
 }
 exports.PrismaUserRepository = PrismaUserRepository;

@@ -27,6 +27,7 @@ async function main() {
     update: {},
     create: {
       email: 'superadmin@plataforma.com',
+      nombre: 'Super Admin',
       password: hashedAdminPassword,
       // No tiene companyId porque es el dueño global
     },

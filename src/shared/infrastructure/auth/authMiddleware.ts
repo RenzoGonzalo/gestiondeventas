@@ -8,7 +8,9 @@ export interface AuthRequest extends Request {
 type JwtPayload = {
   id: string;
   email: string;
+  nombre: string;
   companyId: string | null;
+  rol: string;
   roles: string[];
   iat?: number;
   exp?: number;
