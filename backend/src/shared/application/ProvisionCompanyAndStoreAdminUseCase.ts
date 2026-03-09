@@ -25,12 +25,13 @@ export class ProvisionCompanyAndStoreAdminUseCase {
 
   async execute(input: {
     company: { name: string; ruc?: string | null; address?: string | null };
-    admin: { email: string; password: string };
+    admin: { email: string; password: string; nombre: string };
   }) {
     const company = await this.createCompanyUseCase.execute(input.company);
 
     const adminUser = await this.registerUseCase.execute({
       email: input.admin.email,
+      nombre: input.admin.nombre,
       password: input.admin.password,
       roleName: "STORE_ADMIN",
       companyId: company.id

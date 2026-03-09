@@ -1,6 +1,8 @@
 import express from "express";
 import dotenv from "dotenv";
 import authRouter from "./modules/users/presentation/authRouter";
+import sellersRouter from "./modules/users/presentation/sellersRouter";
+import superRouter from "./modules/users/presentation/superRouter";
 import companyRouter from "./modules/companies/presentation/companyRouter";
 import inventoryRouter from "./modules/inventory/presentation/inventoryRouter";
 
@@ -9,7 +11,9 @@ dotenv.config();
 const app = express();
 
 app.use(express.json());
-app.use("/auth", authRouter);
+app.use("/api/auth", authRouter);
+app.use("/api/store-admin/sellers", sellersRouter);
+app.use("/api/super", superRouter);
 app.use("/companies", companyRouter);
 app.use("/api", inventoryRouter);
 const port = Number(process.env.PORT) || 4000;

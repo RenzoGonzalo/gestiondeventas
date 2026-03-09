@@ -12,11 +12,12 @@ export class RegisterUseCase {
 
   async execute(input: {
     email: string;
+    nombre: string;
     password: string;
     roleName: string;
     companyId?: string | null;
   }) {
-    const { email, password, roleName } = input;
+    const { email, nombre, password, roleName } = input;
 
     const existing = await this.userRepository.findByEmail(email);
 
@@ -31,6 +32,7 @@ export class RegisterUseCase {
 
     const user = await this.userRepository.create({
       email,
+      nombre,
       password: hashed,
       roleIds: [role.id],
       companyId: input.companyId ?? null
@@ -39,6 +41,7 @@ export class RegisterUseCase {
     return {
       id: user.id,
       email: user.email,
+      nombre: user.nombre,
       companyId: user.companyId,
       roles: user.roles
     };

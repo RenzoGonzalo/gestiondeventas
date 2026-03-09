@@ -12,6 +12,7 @@ class ProvisionCompanyAndStoreAdminUseCase {
         const company = await this.createCompanyUseCase.execute(input.company);
         const adminUser = await this.registerUseCase.execute({
             email: input.admin.email,
+            nombre: input.admin.nombre,
             password: input.admin.password,
             roleName: "STORE_ADMIN",
             companyId: company.id
