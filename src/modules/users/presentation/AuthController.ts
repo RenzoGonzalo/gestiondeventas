@@ -1,26 +1,15 @@
 import { Request, Response } from "express";
-import { PrismaUserRepository } from "../infrastructure/PrismaUserRepository";
-import { BcryptPasswordService } from "../infrastructure/services/BcryptPasswordService";
-import { JwtTokenService } from "../infrastructure/services/JwtTokenService";
 import { LoginUseCase } from "../application/LoginUseCase";
 import { AppError } from "../../../shared/application/errors/AppError";
 
 export class AuthController {
-  async login(req: Request, res: Response) {
+  constructor(private readonly loginUseCase: LoginUseCase) {}
+
+  login = async (req: Request, res: Response) => {
     try {
       const { email, password } = req.body;
 
-      const userRepository = new PrismaUserRepository();
-      const passwordService = new BcryptPasswordService();
-      const tokenService = new JwtTokenService();
-
-      const useCase = new LoginUseCase(
-        userRepository,
-        passwordService,
-        tokenService
-      );
-
-      const result = await useCase.execute(email, password, {
+      const result = await this.loginUseCase.execute(email, password, {
         allowedRoles: ["SUPER_ADMIN", "STORE_ADMIN"]                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
       });
 
@@ -32,23 +21,13 @@ export class AuthController {
 
       return res.status(401).json({ message: error.message });
     }
-  }
+  };
 
-  async sellerLogin(req: Request, res: Response) {
+  sellerLogin = async (req: Request, res: Response) => {
     try {
       const { email, password } = req.body;
 
-      const userRepository = new PrismaUserRepository();
-      const passwordService = new BcryptPasswordService();
-      const tokenService = new JwtTokenService();
-
-      const useCase = new LoginUseCase(
-        userRepository,
-        passwordService,
-        tokenService
-      );
-
-      const result = await useCase.execute(email, password, {
+      const result = await this.loginUseCase.execute(email, password, {
         allowedRoles: ["SELLER"]
       });
 
@@ -60,5 +39,5 @@ export class AuthController {
 
       return res.status(401).json({ message: error.message });
     }
-  }
+  };
 }

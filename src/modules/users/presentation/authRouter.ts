@@ -1,13 +1,12 @@
 import { Router } from "express";
-import { AuthController } from "./AuthController";
 import { authMiddleware } from "../../../shared/infrastructure/auth/authMiddleware";
+import { authController } from "../user.dependencies";
 
 const router = Router();
-const controller = new AuthController();
 
-router.post("/login", controller.login);
-router.post("/seller-login", controller.sellerLogin);
-// router.post("/login_seller", controller.sellerLogin);
+router.post("/login", authController.login);
+router.post("/seller-login", authController.sellerLogin);
+// router.post("/login_seller", authController.sellerLogin);
 
 // prueba para verificar el middleware. En producción, esta ruta no debería existir o estar protegida de otra forma.
 
