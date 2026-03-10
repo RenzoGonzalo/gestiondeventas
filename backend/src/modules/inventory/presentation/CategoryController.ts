@@ -1,5 +1,4 @@
 import { Request, Response } from "express";
-import { PrismaCategoryRepository } from "../infrastructure/PrismaCategoryRepository";
 import { CreateCategoryUseCase } from "../application/CreateCategoryUseCase";
 import { ListCategoriesUseCase } from "../application/ListCategoriesUseCase";
 import { GetCategoryByIdUseCase } from "../application/GetCategoryByIdUseCase";
@@ -8,17 +7,22 @@ import { DeleteCategoryUseCase } from "../application/DeleteCategoryUseCase";
 import { AppError } from "../../../shared/application/errors/AppError";
 
 export class CategoryController {
-  async create(req: any, res: Response) {
+  constructor(
+    private readonly createCategoryUseCase: CreateCategoryUseCase,
+    private readonly listCategoriesUseCase: ListCategoriesUseCase,
+    private readonly getCategoryByIdUseCase: GetCategoryByIdUseCase,
+    private readonly updateCategoryUseCase: UpdateCategoryUseCase,
+    private readonly deleteCategoryUseCase: DeleteCategoryUseCase
+  ) {}
+
+  create = async (req: Request & { user?: any }, res: Response) => {
     try {
       const companyId = req.user?.companyId as string | null;
       if (!companyId) return res.status(403).json({ message: "No autorizado: usuario sin companyId" });
 
       const { nombre, descripcion } = req.body;
 
-      const repo = new PrismaCategoryRepository();
-      const useCase = new CreateCategoryUseCase(repo);
-
-      const result = await useCase.execute({ companyId, nombre, descripcion });
+      const result = await this.createCategoryUseCase.execute({ companyId, nombre, descripcion });
       return res.status(201).json(result);
     } catch (error: any) {
       if (error instanceof AppError) {
@@ -26,16 +30,14 @@ export class CategoryController {
       }
       return res.status(400).json({ message: error.message });
     }
-  }
+  };
 
-  async list(req: any, res: Response) {
+  list = async (req: Request & { user?: any }, res: Response) => {
     try {
       const companyId = req.user?.companyId as string | null;
       if (!companyId) return res.status(403).json({ message: "No autorizado: usuario sin companyId" });
 
-      const repo = new PrismaCategoryRepository();
-      const useCase = new ListCategoriesUseCase(repo);
-      const result = await useCase.execute({ companyId });
+      const result = await this.listCategoriesUseCase.execute({ companyId });
 
       return res.status(200).json(result);
     } catch (error: any) {
@@ -44,18 +46,16 @@ export class CategoryController {
       }
       return res.status(400).json({ message: error.message });
     }
-  }
+  };
 
-  async getById(req: any, res: Response) {
+  getById = async (req: Request & { user?: any }, res: Response) => {
     try {
       const companyId = req.user?.companyId as string | null;
       if (!companyId) return res.status(403).json({ message: "No autorizado: usuario sin companyId" });
 
       const id = String(req.params.id);
 
-      const repo = new PrismaCategoryRepository();
-      const useCase = new GetCategoryByIdUseCase(repo);
-      const result = await useCase.execute({ companyId, id });
+      const result = await this.getCategoryByIdUseCase.execute({ companyId, id });
 
       return res.status(200).json(result);
     } catch (error: any) {
@@ -64,9 +64,9 @@ export class CategoryController {
       }
       return res.status(400).json({ message: error.message });
     }
-  }
+  };
 
-  async update(req: any, res: Response) {
+  update = async (req: Request & { user?: any }, res: Response) => {
     try {
       const companyId = req.user?.companyId as string | null;
       if (!companyId) return res.status(403).json({ message: "No autorizado: usuario sin companyId" });
@@ -74,9 +74,7 @@ export class CategoryController {
       const id = String(req.params.id);
       const { nombre, descripcion, activo } = req.body;
 
-      const repo = new PrismaCategoryRepository();
-      const useCase = new UpdateCategoryUseCase(repo);
-      const result = await useCase.execute({ companyId, id, nombre, descripcion, activo });
+      const result = await this.updateCategoryUseCase.execute({ companyId, id, nombre, descripcion, activo });
 
       return res.status(200).json(result);
     } catch (error: any) {
@@ -85,18 +83,16 @@ export class CategoryController {
       }
       return res.status(400).json({ message: error.message });
     }
-  }
+  };
 
-  async delete(req: any, res: Response) {
+  delete = async (req: Request & { user?: any }, res: Response) => {
     try {
       const companyId = req.user?.companyId as string | null;
       if (!companyId) return res.status(403).json({ message: "No autorizado: usuario sin companyId" });
 
       const id = String(req.params.id);
 
-      const repo = new PrismaCategoryRepository();
-      const useCase = new DeleteCategoryUseCase(repo);
-      const result = await useCase.execute({ companyId, id });
+      const result = await this.deleteCategoryUseCase.execute({ companyId, id });
 
       return res.status(200).json(result);
     } catch (error: any) {
@@ -105,5 +101,5 @@ export class CategoryController {
       }
       return res.status(400).json({ message: error.message });
     }
-  }
+  };
 }

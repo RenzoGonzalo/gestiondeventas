@@ -1,6 +1,4 @@
 import { Response } from "express";
-import { PrismaProductRepository } from "../infrastructure/PrismaProductRepository";
-import { PrismaVariantRepository } from "../infrastructure/PrismaVariantRepository";
 import { CreateProductUseCase } from "../application/CreateProductUseCase";
 import { ListProductsUseCase } from "../application/ListProductsUseCase";
 import { GetProductByIdUseCase } from "../application/GetProductByIdUseCase";
@@ -9,7 +7,15 @@ import { DeleteProductUseCase } from "../application/DeleteProductUseCase";
 import { AppError } from "../../../shared/application/errors/AppError";
 
 export class ProductController {
-  async create(req: any, res: Response) {
+  constructor(
+    private readonly createProductUseCase: CreateProductUseCase,
+    private readonly listProductsUseCase: ListProductsUseCase,
+    private readonly getProductByIdUseCase: GetProductByIdUseCase,
+    private readonly updateProductUseCase: UpdateProductUseCase,
+    private readonly deleteProductUseCase: DeleteProductUseCase
+  ) {}
+
+  create = async (req: any, res: Response) => {
     try {
       const companyId = req.user?.companyId as string | null;
       const userId = req.user?.id as string | undefined;
@@ -18,11 +24,7 @@ export class ProductController {
 
       const body = req.body;
 
-      const productRepo = new PrismaProductRepository();
-      const variantRepo = new PrismaVariantRepository();
-      const useCase = new CreateProductUseCase(productRepo, variantRepo);
-
-      const result = await useCase.execute({
+      const result = await this.createProductUseCase.execute({
         companyId,
         creadoPor: userId,
         categoryId: body.categoryId,
@@ -42,19 +44,16 @@ export class ProductController {
       }
       return res.status(400).json({ message: error.message });
     }
-  }
+  };
 
-  async list(req: any, res: Response) {
+  list = async (req: any, res: Response) => {
     try {
       const companyId = req.user?.companyId as string | null;
       if (!companyId) return res.status(403).json({ message: "No autorizado: usuario sin companyId" });
 
       const categoryId = req.query.categoryId ? String(req.query.categoryId) : undefined;
 
-      const productRepo = new PrismaProductRepository();
-      const useCase = new ListProductsUseCase(productRepo);
-
-      const result = await useCase.execute({ companyId, categoryId });
+      const result = await this.listProductsUseCase.execute({ companyId, categoryId });
       return res.status(200).json(result);
     } catch (error: any) {
       if (error instanceof AppError) {
@@ -62,20 +61,16 @@ export class ProductController {
       }
       return res.status(400).json({ message: error.message });
     }
-  }
+  };
 
-  async getById(req: any, res: Response) {
+  getById = async (req: any, res: Response) => {
     try {
       const companyId = req.user?.companyId as string | null;
       if (!companyId) return res.status(403).json({ message: "No autorizado: usuario sin companyId" });
 
       const id = String(req.params.id);
 
-      const productRepo = new PrismaProductRepository();
-      const variantRepo = new PrismaVariantRepository();
-      const useCase = new GetProductByIdUseCase(productRepo, variantRepo);
-
-      const result = await useCase.execute({ companyId, id });
+      const result = await this.getProductByIdUseCase.execute({ companyId, id });
       return res.status(200).json(result);
     } catch (error: any) {
       if (error instanceof AppError) {
@@ -83,9 +78,9 @@ export class ProductController {
       }
       return res.status(400).json({ message: error.message });
     }
-  }
+  };
 
-  async update(req: any, res: Response) {
+  update = async (req: any, res: Response) => {
     try {
       const companyId = req.user?.companyId as string | null;
       if (!companyId) return res.status(403).json({ message: "No autorizado: usuario sin companyId" });
@@ -93,10 +88,7 @@ export class ProductController {
       const id = String(req.params.id);
       const body = req.body;
 
-      const productRepo = new PrismaProductRepository();
-      const useCase = new UpdateProductUseCase(productRepo);
-
-      const result = await useCase.execute({
+      const result = await this.updateProductUseCase.execute({
         companyId,
         id,
         nombre: body.nombre,
@@ -115,19 +107,16 @@ export class ProductController {
       }
       return res.status(400).json({ message: error.message });
     }
-  }
+  };
 
-  async delete(req: any, res: Response) {
+  delete = async (req: any, res: Response) => {
     try {
       const companyId = req.user?.companyId as string | null;
       if (!companyId) return res.status(403).json({ message: "No autorizado: usuario sin companyId" });
 
       const id = String(req.params.id);
 
-      const productRepo = new PrismaProductRepository();
-      const useCase = new DeleteProductUseCase(productRepo);
-
-      const result = await useCase.execute({ companyId, id });
+      const result = await this.deleteProductUseCase.execute({ companyId, id });
       return res.status(200).json(result);
     } catch (error: any) {
       if (error instanceof AppError) {
@@ -135,5 +124,5 @@ export class ProductController {
       }
       return res.status(400).json({ message: error.message });
     }
-  }
+  };
 }

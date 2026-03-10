@@ -1,5 +1,4 @@
 import { Response } from "express";
-import { PrismaVariantRepository } from "../infrastructure/PrismaVariantRepository";
 import { AddVariantToProductUseCase } from "../application/AddVariantToProductUseCase";
 import { UpdateVariantUseCase } from "../application/UpdateVariantUseCase";
 import { DeleteVariantUseCase } from "../application/DeleteVariantUseCase";
@@ -7,7 +6,14 @@ import { AdjustVariantStockUseCase } from "../application/AdjustVariantStockUseC
 import { AppError } from "../../../shared/application/errors/AppError";
 
 export class VariantController {
-  async addToProduct(req: any, res: Response) {
+  constructor(
+    private readonly addVariantToProductUseCase: AddVariantToProductUseCase,
+    private readonly updateVariantUseCase: UpdateVariantUseCase,
+    private readonly deleteVariantUseCase: DeleteVariantUseCase,
+    private readonly adjustVariantStockUseCase: AdjustVariantStockUseCase
+  ) {}
+
+  addToProduct = async (req: any, res: Response) => {
     try {
       const companyId = req.user?.companyId as string | null;
       const userId = req.user?.id as string | undefined;
@@ -17,10 +23,7 @@ export class VariantController {
       const productId = String(req.params.id);
       const body = req.body;
 
-      const repo = new PrismaVariantRepository();
-      const useCase = new AddVariantToProductUseCase(repo);
-
-      const result = await useCase.execute({
+      const result = await this.addVariantToProductUseCase.execute({
         companyId,
         productId,
         creadoPor: userId,
@@ -44,9 +47,9 @@ export class VariantController {
       }
       return res.status(400).json({ message: error.message });
     }
-  }
+  };
 
-  async update(req: any, res: Response) {
+  update = async (req: any, res: Response) => {
     try {
       const companyId = req.user?.companyId as string | null;
       if (!companyId) return res.status(403).json({ message: "No autorizado: usuario sin companyId" });
@@ -54,10 +57,7 @@ export class VariantController {
       const id = String(req.params.id);
       const body = req.body;
 
-      const repo = new PrismaVariantRepository();
-      const useCase = new UpdateVariantUseCase(repo);
-
-      const result = await useCase.execute({
+      const result = await this.updateVariantUseCase.execute({
         companyId,
         id,
         nombre: body.nombre,
@@ -79,19 +79,16 @@ export class VariantController {
       }
       return res.status(400).json({ message: error.message });
     }
-  }
+  };
 
-  async delete(req: any, res: Response) {
+  delete = async (req: any, res: Response) => {
     try {
       const companyId = req.user?.companyId as string | null;
       if (!companyId) return res.status(403).json({ message: "No autorizado: usuario sin companyId" });
 
       const id = String(req.params.id);
 
-      const repo = new PrismaVariantRepository();
-      const useCase = new DeleteVariantUseCase(repo);
-
-      const result = await useCase.execute({ companyId, id });
+      const result = await this.deleteVariantUseCase.execute({ companyId, id });
       return res.status(200).json(result);
     } catch (error: any) {
       if (error instanceof AppError) {
@@ -99,9 +96,9 @@ export class VariantController {
       }
       return res.status(400).json({ message: error.message });
     }
-  }
+  };
 
-  async adjustStock(req: any, res: Response) {
+  adjustStock = async (req: any, res: Response) => {
     try {
       const companyId = req.user?.companyId as string | null;
       const userId = req.user?.id as string | undefined;
@@ -111,10 +108,7 @@ export class VariantController {
       const variantId = String(req.params.id);
       const { cantidad, motivo } = req.body;
 
-      const repo = new PrismaVariantRepository();
-      const useCase = new AdjustVariantStockUseCase(repo);
-
-      const result = await useCase.execute({
+      const result = await this.adjustVariantStockUseCase.execute({
         companyId,
         variantId,
         cantidad: String(cantidad),
@@ -129,5 +123,5 @@ export class VariantController {
       }
       return res.status(400).json({ message: error.message });
     }
-  }
+  };
 }
