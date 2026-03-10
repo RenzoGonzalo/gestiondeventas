@@ -1,17 +1,15 @@
 import { Request, Response } from "express";
-import { PrismaCompanyRepository } from "../infrastructure/PrismaCompanyRepository";
 import { GetCompanyByIdUseCase } from "../application/GetCompanyByIdUseCase";
 import { AppError } from "../../../shared/application/errors/AppError";
 
 export class CompanyController {
-  async getById(req: Request, res: Response) {
+  constructor(private readonly getCompanyByIdUseCase: GetCompanyByIdUseCase) {}
+
+  getById = async (req: Request, res: Response) => {
     try {
       const companyId = String(req.params.companyId);
 
-      const companyRepository = new PrismaCompanyRepository();
-      const useCase = new GetCompanyByIdUseCase(companyRepository);
-
-      const result = await useCase.execute(companyId);
+      const result = await this.getCompanyByIdUseCase.execute(companyId);
 
       return res.status(200).json(result);
     } catch (error: any) {
@@ -21,5 +19,5 @@ export class CompanyController {
 
       return res.status(400).json({ message: error.message });
     }
-  }
+  };
 }

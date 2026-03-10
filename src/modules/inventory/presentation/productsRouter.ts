@@ -1,11 +1,8 @@
 import { Router } from "express";
-import { ProductController } from "./ProductController";
-import { VariantController } from "./VariantController";
 import { authMiddleware, requireStoreAdmin } from "../../../shared/infrastructure/auth/authMiddleware";
+import { productController, variantController } from "../inventory.dependencies";
 
 const router = Router();
-const productController = new ProductController();
-const variantController = new VariantController();
 
 router.post("/", authMiddleware, requireStoreAdmin, productController.create);
 router.get("/", authMiddleware, requireStoreAdmin, productController.list);

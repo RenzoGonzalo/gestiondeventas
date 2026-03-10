@@ -1,20 +1,19 @@
 import { Router } from "express";
-import { CompanyController } from "./CompanyController";
 import {
   authMiddleware,
   requireSameCompanyFromParam,
   requireStoreAdmin
 } from "../../../shared/infrastructure/auth/authMiddleware";
+import { companyController } from "../company.dependencies";
 
 const router = Router();
-const controller = new CompanyController();
 
 router.get(
   "/:companyId",
   authMiddleware,
   requireStoreAdmin,
   requireSameCompanyFromParam("companyId"),
-  controller.getById
+  companyController.getById
 );
 
 export default router;
