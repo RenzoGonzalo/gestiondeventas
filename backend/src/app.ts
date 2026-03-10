@@ -5,6 +5,8 @@ import sellersRouter from "./modules/users/presentation/sellersRouter";
 import superRouter from "./modules/users/presentation/superRouter";
 import companyRouter from "./modules/companies/presentation/companyRouter";
 import inventoryRouter from "./modules/inventory/presentation/inventoryRouter";
+import salesRouter from "./modules/sales/presentation/salesRouter";
+import reportsRouter from "./modules/reports/presentation/reports.routes";
 
 dotenv.config();
 
@@ -16,6 +18,8 @@ app.use("/api/store-admin/sellers", sellersRouter);
 app.use("/api/super", superRouter);
 app.use("/companies", companyRouter);
 app.use("/api", inventoryRouter);
+app.use("/api/sales", salesRouter);
+app.use("/api/reports", reportsRouter);
 const port = Number(process.env.PORT) || 4000;
 
 app.listen(port, () => {
