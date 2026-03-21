@@ -2,6 +2,7 @@ import { UserRepository } from "../domain/UserRepository";
 import { IPasswordService } from "../domain/services/IPasswordService";
 import { ITokenService } from "../domain/services/ITokenService";
 import { ForbiddenError, UnauthorizedError } from "../../../shared/application/errors/AppError";
+import { CompanyRepository } from "../../companies/domain/CompanyRepository";
 
 function pickPrimaryRole(roles: string[]) {
   if (roles.includes("SUPER_ADMIN")) return "SUPER_ADMIN";
@@ -14,7 +15,8 @@ export class LoginUseCase {
   constructor(
     private userRepository: UserRepository,
     private passwordService: IPasswordService,
-    private tokenService: ITokenService
+    private tokenService: ITokenService,
+    private companyRepository: CompanyRepository
   ) {}
 
   async execute(
@@ -41,6 +43,8 @@ export class LoginUseCase {
 
     const rol = pickPrimaryRole(user.roles);
 
+    const company = user.companyId ? await this.companyRepository.findById(user.companyId) : null;
+
     const token = this.tokenService.generate({
       id: user.id,
       email: user.email,
@@ -57,6 +61,8 @@ export class LoginUseCase {
         email: user.email,
         nombre: user.nombre,
         companyId: user.companyId,
+        companySlug: company?.slug ?? null,
+        companyName: company?.name ?? null,
         rol,
         roles: user.roles
       }

@@ -14,6 +14,7 @@ export class GetCompanyByIdUseCase {
     return {
       id: company.id,
       name: company.name,
+      slug: company.slug,
       ruc: company.ruc,
       address: company.address
     };

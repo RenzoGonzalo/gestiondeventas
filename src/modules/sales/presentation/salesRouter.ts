@@ -7,6 +7,9 @@ const router = Router();
 // Crear venta: STORE_ADMIN o SELLER
 router.post("/", authMiddleware, requireAnyRole(["STORE_ADMIN", "SELLER"]), salesController.create);
 
+// Mis ventas: SELLER o STORE_ADMIN (filtra por usuario del token)
+router.get("/my", authMiddleware, requireAnyRole(["STORE_ADMIN", "SELLER"]), salesController.listMine);
+
 // Listar ventas: solo STORE_ADMIN (MVP)
 router.get("/", authMiddleware, requireStoreAdmin, salesController.list);
 

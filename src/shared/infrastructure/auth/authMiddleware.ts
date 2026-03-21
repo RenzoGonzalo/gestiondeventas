@@ -27,7 +27,12 @@ export function authMiddleware(
     return res.status(401).json({ message: "Token missing" });
   }
 
-  const token = authHeader.split(" ")[1];
+  const header = authHeader.trim();
+  const token = header.toLowerCase().startsWith("bearer ") ? header.slice(7).trim() : header;
+
+  if (!token) {
+    return res.status(401).json({ message: "Token missing" });
+  }
 
   try {
     const decoded = jwt.verify(

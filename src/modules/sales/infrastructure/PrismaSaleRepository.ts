@@ -182,6 +182,24 @@ export class PrismaSaleRepository implements SaleRepository {
     return rows.map((r) => this.toDomain(r));
   }
 
+  async listBySeller(input: { companyId: string; sellerId: string; from?: Date; to?: Date }): Promise<Sale[]> {
+    const rows = await prisma.sale.findMany({
+      where: {
+        companyId: input.companyId,
+        sellerId: input.sellerId,
+        createdAt: {
+          gte: input.from ?? undefined,
+          lte: input.to ?? undefined
+        }
+      },
+      include: { items: true },
+      orderBy: { createdAt: "desc" },
+      take: 200
+    });
+
+    return rows.map((r) => this.toDomain(r));
+  }
+
   async cancel(input: {
     companyId: string;
     id: string;

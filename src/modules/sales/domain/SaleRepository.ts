@@ -21,6 +21,13 @@ export interface SaleRepository {
     to?: Date;
   }): Promise<Sale[]>;
 
+  listBySeller(input: {
+    companyId: string;
+    sellerId: string;
+    from?: Date;
+    to?: Date;
+  }): Promise<Sale[]>;
+
   cancel(input: {
     companyId: string;
     id: string;

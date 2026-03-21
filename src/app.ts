@@ -1,5 +1,6 @@
 import express from "express";
 import dotenv from "dotenv";
+import cors from "cors";
 import authRouter from "./modules/users/presentation/authRouter";
 import sellersRouter from "./modules/users/presentation/sellersRouter";
 import superRouter from "./modules/users/presentation/superRouter";
@@ -12,6 +13,24 @@ dotenv.config();
 
 const app = express();
 
+const corsOriginEnv = process.env.CORS_ORIGIN ?? "http://localhost:5173";
+const allowedOrigins = corsOriginEnv
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // origin undefined: Postman/curl o mismo-origen
+      if (!origin) return callback(null, true);
+      return callback(null, allowedOrigins.includes(origin));
+    },
+    credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+  })
+);
 app.use(express.json());
 app.use("/api/auth", authRouter);
 app.use("/api/store-admin/sellers", sellersRouter);

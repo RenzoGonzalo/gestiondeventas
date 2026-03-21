@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { CreateSaleUseCase } from "../application/CreateSaleUseCase";
 import { ListSalesUseCase } from "../application/ListSalesUseCase";
+import { ListMySalesUseCase } from "../application/ListMySalesUseCase";
 import { GetSaleByIdUseCase } from "../application/GetSaleByIdUseCase";
 import { CancelSaleUseCase } from "../application/CancelSaleUseCase";
 import { AppError } from "../../../shared/application/errors/AppError";
@@ -9,6 +10,7 @@ export class SalesController {
   constructor(
     private readonly createSaleUseCase: CreateSaleUseCase,
     private readonly listSalesUseCase: ListSalesUseCase,
+    private readonly listMySalesUseCase: ListMySalesUseCase,
     private readonly getSaleByIdUseCase: GetSaleByIdUseCase,
     private readonly cancelSaleUseCase: CancelSaleUseCase
   ) {}
@@ -50,6 +52,26 @@ export class SalesController {
       const to = req.query.to ? new Date(String(req.query.to)) : undefined;
 
       const result = await this.listSalesUseCase.execute({ companyId, from, to });
+      return res.status(200).json(result);
+    } catch (error: any) {
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json({ message: error.message });
+      }
+      return res.status(400).json({ message: error.message });
+    }
+  };
+
+  listMine = async (req: Request & { user?: any }, res: Response) => {
+    try {
+      const companyId = req.user?.companyId as string | null;
+      const sellerId = req.user?.id as string | undefined;
+      if (!companyId) return res.status(403).json({ message: "No autorizado: usuario sin companyId" });
+      if (!sellerId) return res.status(401).json({ message: "Token missing" });
+
+      const from = req.query.from ? new Date(String(req.query.from)) : undefined;
+      const to = req.query.to ? new Date(String(req.query.to)) : undefined;
+
+      const result = await this.listMySalesUseCase.execute({ companyId, sellerId, from, to });
       return res.status(200).json(result);
     } catch (error: any) {
       if (error instanceof AppError) {

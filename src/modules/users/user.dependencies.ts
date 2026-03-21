@@ -11,6 +11,8 @@ import { JwtTokenService } from "./infrastructure/services/JwtTokenService";
 import { AuthController } from "./presentation/AuthController";
 import { SellersController } from "./presentation/SellersController";
 import { SuperAdminController } from "./presentation/SuperAdminController";
+import { ListCompaniesUseCase } from "../companies/application/ListCompaniesUseCase";
+import { UpdateCompanyUseCase } from "../companies/application/UpdateCompanyUseCase";
 
 import { ProvisionCompanyAndStoreAdminUseCase } from "../../shared/application/ProvisionCompanyAndStoreAdminUseCase";
 
@@ -23,7 +25,7 @@ const tokenService = new JwtTokenService();
 const companyRepository = new PrismaCompanyRepository();
 
 // --- Use cases (Application) ---
-const loginUseCase = new LoginUseCase(userRepository, passwordService, tokenService);
+const loginUseCase = new LoginUseCase(userRepository, passwordService, tokenService, companyRepository);
 
 const createSellerUseCase = new CreateSellerUseCase(
   userRepository,
@@ -39,9 +41,14 @@ const provisionCompanyAndStoreAdminUseCase = new ProvisionCompanyAndStoreAdminUs
   passwordService
 });
 
+const listCompaniesUseCase = new ListCompaniesUseCase(companyRepository);
+const updateCompanyUseCase = new UpdateCompanyUseCase(companyRepository);
+
 // --- Controllers (Presentation) ---
 export const authController = new AuthController(loginUseCase);
 export const sellersController = new SellersController(createSellerUseCase);
 export const superAdminController = new SuperAdminController(
-  provisionCompanyAndStoreAdminUseCase
+  provisionCompanyAndStoreAdminUseCase,
+  listCompaniesUseCase,
+  updateCompanyUseCase
 );

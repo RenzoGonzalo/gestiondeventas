@@ -20,6 +20,7 @@ enum UnitType {
 model Company {
   id         String          @id @default(uuid())
   name       String
+  slug       String          @unique
   ruc        String?         @unique
   address    String?
   createdAt  DateTime        @default(now()) @map("created_at")
