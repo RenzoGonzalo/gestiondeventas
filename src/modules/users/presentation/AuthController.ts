@@ -6,6 +6,13 @@ import { SellerCodeLoginUseCase } from "../application/SellerCodeLoginUseCase";
 import { AppError } from "../../../shared/application/errors/AppError";
 import crypto from "crypto";
 import { UserRepository } from "../domain/UserRepository";
+import { z } from "zod";
+import { validateBody } from "../../../shared/infrastructure/validation/zod";
+
+const loginBodySchema = z.object({
+  email: z.string().email("Email inválido"),
+  password: z.string().min(1, "Password requerido")
+});
 
 export class AuthController {
   constructor(
@@ -18,7 +25,7 @@ export class AuthController {
 
   login = async (req: Request, res: Response) => {
     try {
-      const { email, password } = req.body;
+      const { email, password } = validateBody(loginBodySchema, req.body);
 
       const result = await this.loginUseCase.execute(email, password, {
         allowedRoles: ["SUPER_ADMIN"]
@@ -26,6 +33,13 @@ export class AuthController {
 
       return res.status(200).json(result);
     } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          error: "Datos inválidos",
+          details: error.issues.map((i) => ({ field: i.path.join("."), message: i.message }))
+        });
+      }
+
       if (error instanceof AppError) {
         return res.status(error.statusCode).json({ message: error.message });
       }

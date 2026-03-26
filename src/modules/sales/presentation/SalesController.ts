@@ -5,6 +5,20 @@ import { ListMySalesUseCase } from "../application/ListMySalesUseCase";
 import { GetSaleByIdUseCase } from "../application/GetSaleByIdUseCase";
 import { CancelSaleUseCase } from "../application/CancelSaleUseCase";
 import { AppError } from "../../../shared/application/errors/AppError";
+import { z } from "zod";
+import { validateBody } from "../../../shared/infrastructure/validation/zod";
+
+const createSaleBodySchema = z.object({
+  items: z
+    .array(
+      z.object({
+        variantId: z.string().min(1, "variantId requerido"),
+        quantity: z.union([z.string(), z.number()]),
+        unitPrice: z.union([z.string(), z.number()]).optional()
+      })
+    )
+    .min(1, "items requerido")
+});
 
 export class SalesController {
   constructor(
@@ -22,7 +36,7 @@ export class SalesController {
       if (!companyId) return res.status(403).json({ message: "No autorizado: usuario sin companyId" });
       if (!sellerId) return res.status(401).json({ message: "Token missing" });
 
-      const items = Array.isArray((req.body as any)?.items) ? (req.body as any).items : [];
+      const { items } = validateBody(createSaleBodySchema, req.body);
 
       const result = await this.createSaleUseCase.execute({
         companyId,
@@ -36,6 +50,13 @@ export class SalesController {
 
       return res.status(201).json(result);
     } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          error: "Datos inválidos",
+          details: error.issues.map((i) => ({ field: i.path.join("."), message: i.message }))
+        });
+      }
+
       if (error instanceof AppError) {
         return res.status(error.statusCode).json({ message: error.message });
       }

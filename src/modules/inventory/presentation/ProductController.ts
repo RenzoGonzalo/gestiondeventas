@@ -5,6 +5,35 @@ import { GetProductByIdUseCase } from "../application/GetProductByIdUseCase";
 import { UpdateProductUseCase } from "../application/UpdateProductUseCase";
 import { DeleteProductUseCase } from "../application/DeleteProductUseCase";
 import { AppError } from "../../../shared/application/errors/AppError";
+import { z } from "zod";
+import { validateBody } from "../../../shared/infrastructure/validation/zod";
+
+const createProductBodySchema = z.object({
+  categoryId: z.string().min(1, "categoryId requerido"),
+  nombre: z.string().min(1, "nombre requerido"),
+  descripcion: z.any().optional(),
+  imagen: z.any().optional(),
+  activo: z.any().optional(),
+  atributos: z.any().optional(),
+  unitType: z.any().optional(),
+  variantes: z
+    .array(
+      z.object({
+        nombre: z.string().min(1, "nombre requerido"),
+        sku: z.string().min(1, "sku requerido"),
+        codigoBarras: z.any().optional(),
+        atributos: z.any().default({}),
+        unitType: z.any().optional(),
+        precioCompra: z.any(),
+        precioVenta: z.any(),
+        stockActual: z.any().optional(),
+        stockMinimo: z.any().optional(),
+        ubicacion: z.any().optional(),
+        activo: z.any().optional()
+      })
+    )
+    .optional()
+});
 
 export class ProductController {
   constructor(
@@ -22,7 +51,7 @@ export class ProductController {
       if (!companyId) return res.status(403).json({ message: "No autorizado: usuario sin companyId" });
       if (!userId) return res.status(401).json({ message: "Token missing" });
 
-      const body = req.body;
+      const body = validateBody(createProductBodySchema, req.body);
 
       const result = await this.createProductUseCase.execute({
         companyId,
@@ -39,6 +68,13 @@ export class ProductController {
 
       return res.status(201).json(result);
     } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          error: "Datos inválidos",
+          details: error.issues.map((i) => ({ field: i.path.join("."), message: i.message }))
+        });
+      }
+
       if (error instanceof AppError) {
         return res.status(error.statusCode).json({ message: error.message });
       }

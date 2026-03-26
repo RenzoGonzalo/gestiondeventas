@@ -5,6 +5,7 @@ import { LoginWithGoogleUseCase } from "./application/LoginWithGoogleUseCase";
 import { ResendSuperAdminVerificationEmailUseCase } from "./application/ResendSuperAdminVerificationEmailUseCase";
 import { SellerCodeLoginUseCase } from "./application/SellerCodeLoginUseCase";
 import { CreateSellerUseCase } from "./application/CreateSellerUseCase";
+import { ListSellersUseCase } from "./application/ListSellersUseCase";
 
 import { PrismaUserRepository } from "./infrastructure/PrismaUserRepository";
 import { PrismaRoleRepository } from "./infrastructure/PrismaRoleRepository";
@@ -39,6 +40,8 @@ const createSellerUseCase = new CreateSellerUseCase(
   passwordService
 );
 
+const listSellersUseCase = new ListSellersUseCase(userRepository);
+
 // (ProvisionCompanyAndStoreAdminUseCase ya orquesta casos de uso internos)
 const provisionCompanyAndStoreAdminUseCase = new ProvisionCompanyAndStoreAdminUseCase({
   companyRepository,
@@ -58,7 +61,7 @@ export const authController = new AuthController(
   sellerCodeLoginUseCase,
   userRepository
 );
-export const sellersController = new SellersController(createSellerUseCase);
+export const sellersController = new SellersController(createSellerUseCase, listSellersUseCase);
 export const superAdminController = new SuperAdminController(
   provisionCompanyAndStoreAdminUseCase,
   listCompaniesUseCase,

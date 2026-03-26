@@ -3,7 +3,7 @@ import { ForbiddenError, UnauthorizedError } from "../../../shared/application/e
 import { UserRepository } from "../domain/UserRepository";
 import { ITokenService } from "../domain/services/ITokenService";
 import { CompanyRepository } from "../../companies/domain/CompanyRepository";
-import { sendEmailWithResend } from "../../../shared/infrastructure/email/ResendEmailService";
+import { sendEmailWithGmailSmtp } from "../../../shared/infrastructure/email/GmailSmtpEmailService";
 
 export class LoginWithGoogleUseCase {
   private readonly oauthClient: OAuth2Client;
@@ -100,7 +100,7 @@ export class LoginWithGoogleUseCase {
     if (!user.storeAdminWelcomeEmailSentAt) {
       try {
         console.info(`[store_admin_welcome_email] sending to=${user.email} userId=${user.id}`);
-        await sendEmailWithResend({
+        await sendEmailWithGmailSmtp({
           toEmail: user.email,
           toName: user.nombre,
           subject: "Bienvenido/a",

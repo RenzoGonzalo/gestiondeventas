@@ -4,6 +4,42 @@ import { UserRepository } from "../domain/UserRepository";
 import { User } from "../domain/User"; // <--- Importas TU clase de dominio
 
 export class PrismaUserRepository implements UserRepository {
+
+  async listSellersByCompany(companyId: string): Promise<User[]> {
+    const rows = (await prisma.user.findMany({
+      where: {
+        companyId,
+        roles: {
+          some: {
+            role: {
+              name: "SELLER"
+            }
+          }
+        }
+      },
+      orderBy: { createdAt: "desc" },
+      include: { roles: { include: { role: true } } }
+    })) as any[];
+
+    return rows.map((userData) =>
+      new User(
+        userData.id,
+        userData.email,
+        userData.nombre,
+        userData.password,
+        userData.googleSub ?? null,
+        userData.sellerCode ?? null,
+        userData.storeAdminWelcomeEmailSentAt ?? null,
+        userData.emailVerified,
+        userData.emailVerificationTokenHash ?? null,
+        userData.emailVerificationTokenExpiresAt ?? null,
+        userData.companyId ?? null,
+        (userData.roles as any[]).map((ur: any) => ur.role.name),
+        userData.createdAt,
+        userData.updatedAt
+      )
+    );
+  }
   
   async findByEmail(email: string): Promise<User | null> {
     const userData = (await prisma.user.findUnique({

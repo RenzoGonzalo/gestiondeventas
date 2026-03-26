@@ -9,6 +9,7 @@ export interface UserRepository {
   markEmailVerified(userId: string): Promise<void>;
   linkGoogleSub(userId: string, googleSub: string): Promise<void>;
   markStoreAdminWelcomeEmailSent(userId: string): Promise<void>;
+  listSellersByCompany(companyId: string): Promise<User[]>;
   create(data: {
     email: string;
     nombre: string;

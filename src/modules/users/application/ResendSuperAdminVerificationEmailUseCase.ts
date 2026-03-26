@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import { ForbiddenError } from "../../../shared/application/errors/AppError";
-import { sendEmailWithResend } from "../../../shared/infrastructure/email/ResendEmailService";
+import { sendEmailWithGmailSmtp } from "../../../shared/infrastructure/email/GmailSmtpEmailService";
 import { UserRepository } from "../domain/UserRepository";
 
 export class ResendSuperAdminVerificationEmailUseCase {
@@ -37,7 +37,7 @@ export class ResendSuperAdminVerificationEmailUseCase {
       console.log("🔗 Link de verificación (dev):", verifyUrl);
     }
 
-    await sendEmailWithResend({
+    await sendEmailWithGmailSmtp({
       toEmail: normalizedEmail,
       toName: "Super Admin",
       subject: "Verifica tu correo (Sistema de Ventas)",
