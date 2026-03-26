@@ -201,6 +201,21 @@ model User {
   email     String     @unique
   nombre    String     @default("")
   password  String
+
+  // Google auth (para STORE_ADMIN)
+  googleSub String?    @unique @map("google_sub")
+
+  // Seller code login (para SELLER)
+  sellerCode String?   @unique @map("seller_code")
+
+  // Email bienvenida (para STORE_ADMIN)
+  storeAdminWelcomeEmailSentAt DateTime? @map("store_admin_welcome_email_sent_at")
+
+  // Email verification (para SUPER_ADMIN / login por password)
+  emailVerified                 Boolean   @default(false) @map("email_verified")
+  emailVerificationTokenHash    String?   @unique @map("email_verification_token_hash")
+  emailVerificationTokenExpiresAt DateTime? @map("email_verification_token_expires_at")
+
   createdAt DateTime   @default(now()) @map("created_at")
   updatedAt DateTime   @updatedAt @map("updated_at")
   companyId String?

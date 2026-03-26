@@ -10,11 +10,10 @@ export class SellersController {
       const companyId = req.user?.companyId as string | null;
       if (!companyId) return res.status(403).json({ message: "No autorizado: usuario sin companyId" });
 
-      const { email, password, nombre } = req.body;
+      const { code, nombre } = req.body;
       const result = await this.createSellerUseCase.execute({
         companyId,
-        email,
-        password,
+        code,
         nombre
       });
 

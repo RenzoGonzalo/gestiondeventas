@@ -1,6 +1,9 @@
 import { PrismaCompanyRepository } from "../companies/infrastructure/PrismaCompanyRepository";
 
 import { LoginUseCase } from "./application/LoginUseCase";
+import { LoginWithGoogleUseCase } from "./application/LoginWithGoogleUseCase";
+import { ResendSuperAdminVerificationEmailUseCase } from "./application/ResendSuperAdminVerificationEmailUseCase";
+import { SellerCodeLoginUseCase } from "./application/SellerCodeLoginUseCase";
 import { CreateSellerUseCase } from "./application/CreateSellerUseCase";
 
 import { PrismaUserRepository } from "./infrastructure/PrismaUserRepository";
@@ -26,6 +29,9 @@ const companyRepository = new PrismaCompanyRepository();
 
 // --- Use cases (Application) ---
 const loginUseCase = new LoginUseCase(userRepository, passwordService, tokenService, companyRepository);
+const loginWithGoogleUseCase = new LoginWithGoogleUseCase(userRepository, tokenService, companyRepository);
+const resendSuperAdminVerificationEmailUseCase = new ResendSuperAdminVerificationEmailUseCase(userRepository);
+const sellerCodeLoginUseCase = new SellerCodeLoginUseCase(userRepository, tokenService, companyRepository);
 
 const createSellerUseCase = new CreateSellerUseCase(
   userRepository,
@@ -45,7 +51,13 @@ const listCompaniesUseCase = new ListCompaniesUseCase(companyRepository);
 const updateCompanyUseCase = new UpdateCompanyUseCase(companyRepository);
 
 // --- Controllers (Presentation) ---
-export const authController = new AuthController(loginUseCase);
+export const authController = new AuthController(
+  loginUseCase,
+  loginWithGoogleUseCase,
+  resendSuperAdminVerificationEmailUseCase,
+  sellerCodeLoginUseCase,
+  userRepository
+);
 export const sellersController = new SellersController(createSellerUseCase);
 export const superAdminController = new SuperAdminController(
   provisionCompanyAndStoreAdminUseCase,

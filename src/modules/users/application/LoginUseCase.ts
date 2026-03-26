@@ -3,13 +3,7 @@ import { IPasswordService } from "../domain/services/IPasswordService";
 import { ITokenService } from "../domain/services/ITokenService";
 import { ForbiddenError, UnauthorizedError } from "../../../shared/application/errors/AppError";
 import { CompanyRepository } from "../../companies/domain/CompanyRepository";
-
-function pickPrimaryRole(roles: string[]) {
-  if (roles.includes("SUPER_ADMIN")) return "SUPER_ADMIN";
-  if (roles.includes("STORE_ADMIN")) return "STORE_ADMIN";
-  if (roles.includes("SELLER")) return "SELLER";
-  return roles[0] ?? "";
-}
+import { pickPrimaryRole } from "../domain/pickPrimaryRole";
 
 export class LoginUseCase {
   constructor(
@@ -42,6 +36,10 @@ export class LoginUseCase {
     if (!valid) throw new UnauthorizedError("Credenciales inválidas");
 
     const rol = pickPrimaryRole(user.roles);
+
+    if (rol === "SUPER_ADMIN" && !user.emailVerified) {
+      throw new ForbiddenError("Debes verificar tu correo antes de iniciar sesión");
+    }
 
     const company = user.companyId ? await this.companyRepository.findById(user.companyId) : null;
 
