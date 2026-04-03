@@ -1,0 +1,69 @@
+import { UserRepository } from "../domain/UserRepository";
+import { IPasswordService } from "../domain/services/IPasswordService";
+import { ITokenService } from "../domain/services/ITokenService";
+import { ForbiddenError, UnauthorizedError } from "../../../shared/application/errors/AppError";
+import { CompanyRepository } from "../../companies/domain/CompanyRepository";
+import { pickPrimaryRole } from "../domain/pickPrimaryRole";
+
+export class LoginUseCase {
+  constructor(
+    private userRepository: UserRepository,
+    private passwordService: IPasswordService,
+    private tokenService: ITokenService,
+    private companyRepository: CompanyRepository
+  ) {}
+
+  async execute(
+    email: string,
+    password: string,
+    options?: {
+      allowedRoles?: string[];
+    }
+  ) {
+    const user = await this.userRepository.findByEmail(email);
+
+    if (!user) throw new UnauthorizedError("Credenciales inválidas");
+
+    const allowedRoles = options?.allowedRoles ?? ["SUPER_ADMIN", "STORE_ADMIN"];
+    const okRole = allowedRoles.some((r) => user.roles.includes(r));
+    if (!okRole) throw new ForbiddenError("No autorizado para iniciar sesión");
+
+    const valid = await this.passwordService.compare(
+      password,
+      user.password
+    );
+
+    if (!valid) throw new UnauthorizedError("Credenciales inválidas");
+
+    const rol = pickPrimaryRole(user.roles);
+
+    if (rol === "SUPER_ADMIN" && !user.emailVerified) {
+      throw new ForbiddenError("Debes verificar tu correo antes de iniciar sesión");
+    }
+
+    const company = user.companyId ? await this.companyRepository.findById(user.companyId) : null;
+
+    const token = this.tokenService.generate({
+      id: user.id,
+      email: user.email,
+      nombre: user.nombre,
+      companyId: user.companyId,
+      rol,
+      roles: user.roles
+    });
+
+    return {
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        nombre: user.nombre,
+        companyId: user.companyId,
+        companySlug: company?.slug ?? null,
+        companyName: company?.name ?? null,
+        rol,
+        roles: user.roles
+      }
+    };
+  }
+}
