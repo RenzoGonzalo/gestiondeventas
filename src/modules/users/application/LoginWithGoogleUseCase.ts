@@ -3,7 +3,6 @@ import { ForbiddenError, UnauthorizedError } from "../../../shared/application/e
 import { UserRepository } from "../domain/UserRepository";
 import { ITokenService } from "../domain/services/ITokenService";
 import { CompanyRepository } from "../../companies/domain/CompanyRepository";
-import { sendEmailWithGmailSmtp } from "../../../shared/infrastructure/email/GmailSmtpEmailService";
 
 export class LoginWithGoogleUseCase {
   private readonly oauthClient: OAuth2Client;
@@ -16,46 +15,11 @@ export class LoginWithGoogleUseCase {
   ) {
     const clientId = String(process.env.GOOGLE_CLIENT_ID || "").trim();
     if (!clientId) {
-      throw new Error("GOOGLE_CLIENT_ID no está configurado");
+      throw new Error("GOOGLE_CLIENT_ID no esta configurado");
     }
 
     this.audience = clientId;
     this.oauthClient = new OAuth2Client(clientId);
-  }
-
-  private async sendStoreAdminWelcomeEmailInBackground(input: {
-    userId: string;
-    email: string;
-    nombre: string;
-    alreadySentAt: Date | null;
-  }) {
-    if (input.alreadySentAt) {
-      console.info(
-        `[store_admin_welcome_email] skipped (already sent at=${input.alreadySentAt.toISOString()}) userId=${input.userId}`
-      );
-      return;
-    }
-
-    try {
-      console.info(`[store_admin_welcome_email] sending to=${input.email} userId=${input.userId}`);
-      await sendEmailWithGmailSmtp({
-        toEmail: input.email,
-        toName: input.nombre,
-        subject: "Bienvenido/a",
-        html: `
-          <div style="font-family: Arial, sans-serif; line-height: 1.5">
-            <h2>Bienvenido/a, ${input.nombre}</h2>
-            <p>Tu acceso como <strong>Admin de tienda</strong> quedó habilitado con Google.</p>
-            <p>Si no fuiste tú, ignora este correo.</p>
-          </div>
-        `.trim()
-      });
-      await this.userRepository.markStoreAdminWelcomeEmailSent(input.userId);
-      console.info(`[store_admin_welcome_email] sent OK to=${input.email} userId=${input.userId}`);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      console.warn(`[store_admin_welcome_email] failed to send to=${input.email} userId=${input.userId}: ${message}`);
-    }
   }
 
   async execute(idToken: string) {
@@ -67,7 +31,7 @@ export class LoginWithGoogleUseCase {
       });
       payload = ticket.getPayload();
     } catch {
-      throw new UnauthorizedError("Token de Google inválido");
+      throw new UnauthorizedError("Token de Google invalido");
     }
 
     const email = String(payload?.email || "").trim().toLowerCase();
@@ -76,44 +40,31 @@ export class LoginWithGoogleUseCase {
     const emailVerified = Boolean(payload?.email_verified);
 
     if (!email || !googleSub) {
-      throw new UnauthorizedError("Token de Google inválido");
+      throw new UnauthorizedError("Token de Google invalido");
     }
 
     if (!emailVerified) {
       throw new UnauthorizedError("Tu cuenta de Google no tiene el correo verificado");
     }
 
-    // 1) Preferimos buscar por sub (id estable), si no existe caemos por email.
     let user = await this.userRepository.findByGoogleSub(googleSub);
     if (!user) user = await this.userRepository.findByEmail(email);
 
-    // Seguridad: store_admin debe existir (normalmente se provisiona junto a Company)
     if (!user) throw new ForbiddenError("No autorizado");
 
-    // Seguridad: SOLO store_admin entra por Google.
     if (!user.roles.includes("STORE_ADMIN")) {
       throw new ForbiddenError("No autorizado");
     }
 
-    // Google ya valida que el email esté verificado (payload.email_verified).
-    // Marcamos también nuestro flag interno para que la UI/DB no confunda.
     if (!user.emailVerified) {
       await this.userRepository.markEmailVerified(user.id);
       user.emailVerified = true;
       console.info(`[store_admin_email_verified] marked verified userId=${user.id} email=${user.email}`);
     }
 
-    // 2) Linkeamos la cuenta Google al usuario (si aplica)
     if (user.googleSub !== googleSub) {
       await this.userRepository.linkGoogleSub(user.id, googleSub);
       user.googleSub = googleSub;
-    }
-
-    // Si Google dice que el email está verificado, reflejamos eso en nuestro flag interno
-    // (para evitar confusiones en la DB; no afecta el flujo de STORE_ADMIN).
-    if (!user.emailVerified) {
-      await this.userRepository.markEmailVerified(user.id);
-      user.emailVerified = true;
     }
 
     if (!user.nombre && nombre) {
@@ -130,13 +81,6 @@ export class LoginWithGoogleUseCase {
       companyId: user.companyId,
       rol,
       roles: user.roles
-    });
-
-    void this.sendStoreAdminWelcomeEmailInBackground({
-      userId: user.id,
-      email: user.email,
-      nombre: user.nombre,
-      alreadySentAt: user.storeAdminWelcomeEmailSentAt
     });
 
     return {
