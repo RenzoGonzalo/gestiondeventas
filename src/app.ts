@@ -21,7 +21,7 @@ const allowedOrigins = corsOriginEnv
 
 app.use(
   cors({
-    origin: (origin, callback) => {
+    origin: (origin: any, callback: any) => {
       // origin undefined: Postman/curl o mismo-origen
       if (!origin) return callback(null, true);
       return callback(null, allowedOrigins.includes(origin));
