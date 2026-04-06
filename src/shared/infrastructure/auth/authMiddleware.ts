@@ -16,11 +16,7 @@ type JwtPayload = {
   exp?: number;
 };
 
-export function authMiddleware(
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction
-) {
+export const authMiddleware = (req: any, res: any, next: any) => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader) {
@@ -47,11 +43,7 @@ export function authMiddleware(
   }
 }
 
-export function requireSuperAdmin(
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction
-) {
+export function requireSuperAdmin(req: any, res: any, next: any) {
   if (!req.user || !Array.isArray(req.user.roles) || !req.user.roles.includes("SUPER_ADMIN")) {
     return res
       .status(403)
@@ -76,7 +68,7 @@ export function requireStoreAdmin(
 }
 
 export function requireAnyRole(allowedRoles: string[]) {
-  return (req: AuthRequest, res: Response, next: NextFunction) => {
+  return (req: any, res: any, next: any) => {
     const roles: unknown = req.user?.roles;
 
     if (!Array.isArray(roles)) {
@@ -93,7 +85,7 @@ export function requireAnyRole(allowedRoles: string[]) {
 }
 
 export function requireSameCompanyFromParam(paramName: string) {
-  return (req: AuthRequest, res: Response, next: NextFunction) => {
+  return (req: any, res: any, next: any) => {
     const requestedCompanyId = req.params?.[paramName];
 
     if (!req.user) {
