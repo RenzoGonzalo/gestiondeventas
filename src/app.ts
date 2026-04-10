@@ -18,7 +18,8 @@ const corsOrigin = process.env.CORS_ORIGIN || "http://localhost:5173";
 
 app.use(
   cors({
-    origin: ["https://gestionventasfrontend.vercel.app", "http://localhost:5173"],
+    // Pon tu URL de vercel EXACTA sin la barra final
+    origin: ["https://gestionventasfrontend.vercel.app", "http://localhost:5173"], 
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization"],
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
