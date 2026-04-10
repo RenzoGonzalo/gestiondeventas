@@ -18,9 +18,7 @@ const corsOrigin = process.env.CORS_ORIGIN || "http://localhost:5173";
 
 app.use(
   cors({
-    // Si en Render pones *, esto funcionará. 
-    // Si pones la URL de Vercel, también.
-    origin: corsOrigin === "*" ? true : corsOrigin.split(",").map(o => o.trim()),
+    origin: ["https://gestionventasfrontend.vercel.app", "http://localhost:5173"],
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization"],
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
