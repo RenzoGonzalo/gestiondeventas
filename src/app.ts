@@ -13,19 +13,14 @@ dotenv.config();
 
 const app = express();
 
-const corsOriginEnv = process.env.CORS_ORIGIN ?? "http://localhost:5173";
-const allowedOrigins = corsOriginEnv
-  .split(",")
-  .map((s) => s.trim())
-  .filter(Boolean);
+// Simplificamos la lógica del CORS
+const corsOrigin = process.env.CORS_ORIGIN || "http://localhost:5173";
 
 app.use(
   cors({
-    origin: (origin: any, callback: any) => {
-      // origin undefined: Postman/curl o mismo-origen
-      if (!origin) return callback(null, true);
-      return callback(null, allowedOrigins.includes(origin));
-    },
+    // Si en Render pones *, esto funcionará. 
+    // Si pones la URL de Vercel, también.
+    origin: corsOrigin === "*" ? true : corsOrigin.split(",").map(o => o.trim()),
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization"],
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
