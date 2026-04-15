@@ -1,4 +1,5 @@
 import prisma from "../../../shared/infrastructure/persistence/prisma";
+import { Prisma } from "@prisma/client";
 import { SaleRepository, CreateSaleItemInput } from "../domain/SaleRepository";
 import { Sale } from "../domain/Sale";
 import { SaleItem } from "../domain/SaleItem";
@@ -32,128 +33,146 @@ export class PrismaSaleRepository implements SaleRepository {
   async create(input: { companyId: string; sellerId: string; items: CreateSaleItemInput[] }): Promise<Sale> {
     if (!input.items?.length) throw new SalesBadRequestError("Sale items required");
 
-    const now = new Date();
-    const from = startOfDay(now);
-    const to = endOfDay(now);
+    // Puede fallar por concurrencia (2 ventas al mismo tiempo) o por reinicio de
+    // correlativo diario. Como la BD exige uniqueness por (companyId, receiptNumber),
+    // generamos correlativo por empresa (no se reinicia) y reintentamos si hay colisión.
+    const maxAttempts = 5;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        const result = await prisma.$transaction(async (tx) => {
+          // validar seller
+          const seller = await tx.user.findFirst({
+            where: { id: input.sellerId, companyId: input.companyId }
+          });
+          if (!seller) throw new SalesBadRequestError("Seller not found for this company");
 
-    const result = await prisma.$transaction(async (tx) => {
-      // validar seller
-      const seller = await tx.user.findFirst({
-        where: { id: input.sellerId, companyId: input.companyId }
-      });
-      if (!seller) throw new SalesBadRequestError("Seller not found for this company");
+          // siguiente correlativo por empresa (NO por día)
+          const lastSale = await tx.sale.findFirst({
+            where: {
+              companyId: input.companyId
+            },
+            orderBy: { receiptNumber: "desc" },
+            select: { receiptNumber: true }
+          });
 
-      // siguiente correlativo por día/empresa
-      const lastSale = await tx.sale.findFirst({
-        where: {
-          companyId: input.companyId,
-          createdAt: { gte: from, lte: to }
-        },
-        orderBy: { createdAt: "desc" },
-        select: { receiptNumber: true }
-      });
+          const nextSeq = (lastSale ? parseSeq(lastSale.receiptNumber) : 0) + 1;
+          const receiptNumber = formatReceipt(nextSeq);
 
-      const nextSeq = (lastSale ? parseSeq(lastSale.receiptNumber) : 0) + 1;
-      const receiptNumber = formatReceipt(nextSeq);
+          // traer variantes y validar stock
+          const variantIds = input.items.map((i) => i.variantId);
+          const variants = await tx.variant.findMany({
+            where: { companyId: input.companyId, id: { in: variantIds } },
+            select: {
+              id: true,
+              precioVenta: true,
+              stockActual: true
+            }
+          });
 
-      // traer variantes y validar stock
-      const variantIds = input.items.map((i) => i.variantId);
-      const variants = await tx.variant.findMany({
-        where: { companyId: input.companyId, id: { in: variantIds } },
-        select: {
-          id: true,
-          precioVenta: true,
-          stockActual: true
-        }
-      });
+          if (variants.length !== variantIds.length) {
+            throw new SalesBadRequestError("One or more variants not found for this company");
+          }
 
-      if (variants.length !== variantIds.length) {
-        throw new SalesBadRequestError("One or more variants not found for this company");
-      }
+          const variantById = new Map(variants.map((v) => [v.id, v] as const));
 
-      const variantById = new Map(variants.map((v) => [v.id, v] as const));
+          const normalizedItems = input.items.map((it) => {
+            const v = variantById.get(it.variantId)!;
+            const quantity = Number(it.quantity);
+            if (!Number.isFinite(quantity) || quantity <= 0) {
+              throw new SalesBadRequestError("Invalid quantity");
+            }
 
-      const normalizedItems = input.items.map((it) => {
-        const v = variantById.get(it.variantId)!;
-        const quantity = Number(it.quantity);
-        if (!Number.isFinite(quantity) || quantity <= 0) {
-          throw new SalesBadRequestError("Invalid quantity");
-        }
+            const unitPrice = it.unitPrice ?? v.precioVenta.toString();
+            const unitPriceNum = Number(unitPrice);
+            if (!Number.isFinite(unitPriceNum) || unitPriceNum < 0) {
+              throw new SalesBadRequestError("Invalid unitPrice");
+            }
 
-        const unitPrice = it.unitPrice ?? v.precioVenta.toString();
-        const unitPriceNum = Number(unitPrice);
-        if (!Number.isFinite(unitPriceNum) || unitPriceNum < 0) {
-          throw new SalesBadRequestError("Invalid unitPrice");
-        }
+            const subtotal = (quantity * unitPriceNum).toFixed(2);
 
-        const subtotal = (quantity * unitPriceNum).toFixed(2);
+            const stockAnterior = Number(v.stockActual.toString());
+            const stockNuevo = stockAnterior - quantity;
+            if (stockNuevo < 0) {
+              throw new SalesConflictError("Stock insuficiente");
+            }
 
-        const stockAnterior = Number(v.stockActual.toString());
-        const stockNuevo = stockAnterior - quantity;
-        if (stockNuevo < 0) {
-          throw new SalesConflictError("Stock insuficiente");
-        }
-
-        return {
-          variantId: it.variantId,
-          quantity: quantity.toFixed(2),
-          unitPrice: unitPriceNum.toFixed(2),
-          subtotal,
-          stockAnterior: stockAnterior.toFixed(2),
-          stockNuevo: stockNuevo.toFixed(2)
-        };
-      });
-
-      const total = normalizedItems
-        .reduce((acc, it) => acc + Number(it.subtotal), 0)
-        .toFixed(2);
-
-      // crear sale + items
-      const sale = await tx.sale.create({
-        data: {
-          companyId: input.companyId,
-          sellerId: input.sellerId,
-          total,
-          receiptNumber,
-          status: "COMPLETADA",
-          items: {
-            create: normalizedItems.map((it) => ({
+            return {
               variantId: it.variantId,
-              quantity: it.quantity,
-              unitPrice: it.unitPrice,
-              subtotal: it.subtotal
-            }))
-          }
-        },
-        include: { items: true }
-      });
+              quantity: quantity.toFixed(2),
+              unitPrice: unitPriceNum.toFixed(2),
+              subtotal,
+              stockAnterior: stockAnterior.toFixed(2),
+              stockNuevo: stockNuevo.toFixed(2)
+            };
+          });
 
-      // descontar stock + movimientos
-      for (const it of normalizedItems) {
-        await tx.variant.update({
-          where: { id: it.variantId },
-          data: { stockActual: it.stockNuevo }
+          const total = normalizedItems
+            .reduce((acc, it) => acc + Number(it.subtotal), 0)
+            .toFixed(2);
+
+          // crear sale + items
+          const sale = await tx.sale.create({
+            data: {
+              companyId: input.companyId,
+              sellerId: input.sellerId,
+              total,
+              receiptNumber,
+              status: "COMPLETADA",
+              items: {
+                create: normalizedItems.map((it) => ({
+                  variantId: it.variantId,
+                  quantity: it.quantity,
+                  unitPrice: it.unitPrice,
+                  subtotal: it.subtotal
+                }))
+              }
+            },
+            include: { items: true }
+          });
+
+          // descontar stock + movimientos
+          for (const it of normalizedItems) {
+            await tx.variant.update({
+              where: { id: it.variantId },
+              data: { stockActual: it.stockNuevo }
+            });
+
+            await tx.stockMovement.create({
+              data: {
+                companyId: input.companyId,
+                variantId: it.variantId,
+                tipo: "VENTA",
+                cantidad: (-Number(it.quantity)).toFixed(2),
+                stockAnterior: it.stockAnterior,
+                stockNuevo: it.stockNuevo,
+                motivo: null,
+                saleId: sale.id,
+                usuarioId: input.sellerId
+              }
+            });
+          }
+
+          return sale;
         });
 
-        await tx.stockMovement.create({
-          data: {
-            companyId: input.companyId,
-            variantId: it.variantId,
-            tipo: "VENTA",
-            cantidad: (-Number(it.quantity)).toFixed(2),
-            stockAnterior: it.stockAnterior,
-            stockNuevo: it.stockNuevo,
-            motivo: null,
-            saleId: sale.id,
-            usuarioId: input.sellerId
-          }
-        });
+        return this.toDomain(result);
+      } catch (error: any) {
+        const isUniqueReceiptConflict =
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === "P2002" &&
+          (Array.isArray((error.meta as any)?.target)
+            ? ((error.meta as any).target as string[]).includes("receiptNumber")
+            : String((error.meta as any)?.target ?? "").includes("receiptNumber"));
+
+        if (isUniqueReceiptConflict && attempt < maxAttempts) {
+          continue;
+        }
+
+        throw error;
       }
+    }
 
-      return sale;
-    });
-
-    return this.toDomain(result);
+    throw new SalesConflictError("Could not generate unique receiptNumber");
   }
 
   async findById(input: { companyId: string; id: string }): Promise<Sale | null> {
