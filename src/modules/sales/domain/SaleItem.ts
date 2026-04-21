@@ -5,6 +5,8 @@ export class SaleItem {
     public readonly variantId: string,
     public quantity: string,
     public unitPrice: string,
-    public subtotal: string
+    public subtotal: string,
+    public readonly variantNombre?: string,
+    public readonly productNombre?: string
   ) {}
 }

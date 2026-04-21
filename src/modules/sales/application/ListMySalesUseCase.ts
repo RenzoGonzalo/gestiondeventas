@@ -13,7 +13,14 @@ export class ListMySalesUseCase {
       total: s.total,
       sellerId: s.sellerId,
       createdAt: s.createdAt,
-      itemCount: s.items.length
+      itemCount: s.items.length,
+      items: s.items.map((it) => ({
+        id: it.id,
+        variantId: it.variantId,
+        productNombre: it.productNombre ?? "",
+        variantNombre: it.variantNombre ?? "",
+        quantity: it.quantity
+      }))
     }));
   }
 }

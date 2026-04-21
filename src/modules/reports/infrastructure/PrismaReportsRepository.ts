@@ -30,46 +30,48 @@ function toYMD(date: Date) {
   return date.toISOString().slice(0, 10);
 }
 
+// Nota: en Postgres, `createdAt` está creado como TIMESTAMP (sin tz) en las migraciones.
+// En Docker Postgres usa UTC por defecto, así que estos timestamps se interpretan como UTC “naive”.
+// Para obtener el día/mes en la zona local de la tienda debemos convertir UTC -> zona local.
+const DB_TIME_ZONE = "UTC";
+const REPORT_TIME_ZONE = "America/Bogota";
+
 export class PrismaReportsRepository implements ReportsRepository {
   async getDashboard(input: { companyId: string }): Promise<DashboardReport> {
-    const now = new Date();
-
-    const todayFrom = startOfDay(now);
-    const todayTo = endOfDay(now);
-
-    const monthFrom = startOfMonth(now);
-    const monthTo = endOfDay(now);
-
-    const [todayAgg, monthAgg, lowStockCount] = await Promise.all([
-      prisma.sale.aggregate({
-        where: {
-          companyId: input.companyId,
-          status: "COMPLETADA",
-          createdAt: { gte: todayFrom, lte: todayTo }
-        },
-        _sum: { total: true },
-        _count: { _all: true }
-      }),
-      prisma.sale.aggregate({
-        where: {
-          companyId: input.companyId,
-          status: "COMPLETADA",
-          createdAt: { gte: monthFrom, lte: monthTo }
-        },
-        _sum: { total: true },
-        _count: { _all: true }
-      }),
+    const [todayRows, monthRows, lowStockCount] = await Promise.all([
+      prisma.$queryRaw<Array<{ total: string; count: bigint }>>`
+        SELECT
+          COALESCE(SUM(total), 0)::text as total,
+          COUNT(*)::bigint as count
+        FROM sales
+        WHERE "companyId" = ${input.companyId}
+          AND status = 'COMPLETADA'
+          AND (("createdAt" AT TIME ZONE ${DB_TIME_ZONE}) AT TIME ZONE ${REPORT_TIME_ZONE})::date = (NOW() AT TIME ZONE ${REPORT_TIME_ZONE})::date;
+      `,
+      prisma.$queryRaw<Array<{ total: string; count: bigint }>>`
+        SELECT
+          COALESCE(SUM(total), 0)::text as total,
+          COUNT(*)::bigint as count
+        FROM sales
+        WHERE "companyId" = ${input.companyId}
+          AND status = 'COMPLETADA'
+          AND EXTRACT(YEAR FROM (("createdAt" AT TIME ZONE ${DB_TIME_ZONE}) AT TIME ZONE ${REPORT_TIME_ZONE})) = EXTRACT(YEAR FROM (NOW() AT TIME ZONE ${REPORT_TIME_ZONE}))
+          AND EXTRACT(MONTH FROM (("createdAt" AT TIME ZONE ${DB_TIME_ZONE}) AT TIME ZONE ${REPORT_TIME_ZONE})) = EXTRACT(MONTH FROM (NOW() AT TIME ZONE ${REPORT_TIME_ZONE}));
+      `,
       this.getLowStockCount({ companyId: input.companyId })
     ]);
 
+    const todayAgg = todayRows[0];
+    const monthAgg = monthRows[0];
+
     return {
       today: {
-        total: todayAgg._sum.total ? todayAgg._sum.total.toString() : "0.00",
-        count: todayAgg._count._all
+        total: todayAgg?.total ?? "0.00",
+        count: Number(todayAgg?.count ?? 0)
       },
       month: {
-        total: monthAgg._sum.total ? monthAgg._sum.total.toString() : "0.00",
-        count: monthAgg._count._all
+        total: monthAgg?.total ?? "0.00",
+        count: Number(monthAgg?.count ?? 0)
       },
       lowStockCount
     };

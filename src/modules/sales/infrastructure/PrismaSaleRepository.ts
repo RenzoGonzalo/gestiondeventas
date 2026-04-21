@@ -17,6 +17,19 @@ function parseSeq(receiptNumber: string): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+const saleItemsWithVariantInclude = {
+  items: {
+    include: {
+      variant: {
+        select: {
+          nombre: true,
+          product: { select: { nombre: true } }
+        }
+      }
+    }
+  }
+} as const;
+
 export class PrismaSaleRepository implements SaleRepository {
   async create(input: { companyId: string; sellerId: string; items: CreateSaleItemInput[] }): Promise<Sale> {
     if (!input.items?.length) throw new SalesBadRequestError("Sale items required");
@@ -107,7 +120,7 @@ export class PrismaSaleRepository implements SaleRepository {
                 }))
               }
             },
-            include: { items: true }
+            include: saleItemsWithVariantInclude
           });
 
           // descontar stock + movimientos
@@ -173,7 +186,7 @@ export class PrismaSaleRepository implements SaleRepository {
   async findById(input: { companyId: string; id: string }): Promise<Sale | null> {
     const row = await prisma.sale.findFirst({
       where: { id: input.id, companyId: input.companyId },
-      include: { items: true }
+      include: saleItemsWithVariantInclude
     });
 
     return row ? this.toDomain(row) : null;
@@ -188,7 +201,7 @@ export class PrismaSaleRepository implements SaleRepository {
           lte: input.to ?? undefined
         }
       },
-      include: { items: true },
+      include: saleItemsWithVariantInclude,
       orderBy: { createdAt: "desc" },
       take: 200
     });
@@ -206,7 +219,7 @@ export class PrismaSaleRepository implements SaleRepository {
           lte: input.to ?? undefined
         }
       },
-      include: { items: true },
+      include: saleItemsWithVariantInclude,
       orderBy: { createdAt: "desc" },
       take: 200
     });
@@ -223,7 +236,7 @@ export class PrismaSaleRepository implements SaleRepository {
     const result = await prisma.$transaction(async (tx) => {
       const sale = await tx.sale.findFirst({
         where: { id: input.id, companyId: input.companyId },
-        include: { items: true }
+        include: saleItemsWithVariantInclude
       });
 
       if (!sale) throw new SalesNotFoundError("Sale not found");
@@ -263,7 +276,7 @@ export class PrismaSaleRepository implements SaleRepository {
       const updated = await tx.sale.update({
         where: { id: sale.id },
         data: { status: "ANULADA" },
-        include: { items: true }
+        include: saleItemsWithVariantInclude
       });
 
       return updated;
@@ -281,7 +294,9 @@ export class PrismaSaleRepository implements SaleRepository {
           it.variantId,
           it.quantity.toString(),
           it.unitPrice.toString(),
-          it.subtotal.toString()
+          it.subtotal.toString(),
+          it.variant?.nombre,
+          it.variant?.product?.nombre
         )
     );
 
