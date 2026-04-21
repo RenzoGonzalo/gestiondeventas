@@ -5,18 +5,6 @@ import { Sale } from "../domain/Sale";
 import { SaleItem } from "../domain/SaleItem";
 import { SalesBadRequestError, SalesConflictError, SalesNotFoundError } from "../domain/SalesErrors";
 
-function startOfDay(d: Date) {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  return x;
-}
-
-function endOfDay(d: Date) {
-  const x = new Date(d);
-  x.setHours(23, 59, 59, 999);
-  return x;
-}
-
 function formatReceipt(seq: number) {
   const serial = String(seq).padStart(6, "0");
   return `001-${serial}`;
@@ -60,16 +48,16 @@ export class PrismaSaleRepository implements SaleRepository {
 
           // traer variantes y validar stock
           const variantIds = input.items.map((i) => i.variantId);
+          const uniqueVariantIds = Array.from(new Set(variantIds));
           const variants = await tx.variant.findMany({
-            where: { companyId: input.companyId, id: { in: variantIds } },
+            where: { companyId: input.companyId, id: { in: uniqueVariantIds } },
             select: {
               id: true,
-              precioVenta: true,
-              stockActual: true
+              precioVenta: true
             }
           });
 
-          if (variants.length !== variantIds.length) {
+          if (variants.length !== uniqueVariantIds.length) {
             throw new SalesBadRequestError("One or more variants not found for this company");
           }
 
@@ -90,19 +78,11 @@ export class PrismaSaleRepository implements SaleRepository {
 
             const subtotal = (quantity * unitPriceNum).toFixed(2);
 
-            const stockAnterior = Number(v.stockActual.toString());
-            const stockNuevo = stockAnterior - quantity;
-            if (stockNuevo < 0) {
-              throw new SalesConflictError("Stock insuficiente");
-            }
-
             return {
               variantId: it.variantId,
               quantity: quantity.toFixed(2),
               unitPrice: unitPriceNum.toFixed(2),
-              subtotal,
-              stockAnterior: stockAnterior.toFixed(2),
-              stockNuevo: stockNuevo.toFixed(2)
+              subtotal
             };
           });
 
@@ -132,10 +112,24 @@ export class PrismaSaleRepository implements SaleRepository {
 
           // descontar stock + movimientos
           for (const it of normalizedItems) {
-            await tx.variant.update({
-              where: { id: it.variantId },
-              data: { stockActual: it.stockNuevo }
-            });
+            // Descuento atómico de stock para evitar oversell en concurrencia.
+            // Si no hay stock suficiente, no actualiza nada y devolvemos conflicto.
+            const qty = it.quantity; // string con 2 decimales
+            const rows = (await tx.$queryRaw`
+              UPDATE "variants"
+              SET "stockActual" = "stockActual" - ${qty}::decimal
+              WHERE "id" = ${it.variantId}
+                AND "companyId" = ${input.companyId}
+                AND "stockActual" >= ${qty}::decimal
+              RETURNING ("stockActual" + ${qty}::decimal) AS "stockAnterior", "stockActual" AS "stockNuevo";
+            `) as Array<{ stockAnterior: any; stockNuevo: any }>;
+
+            if (!rows.length) {
+              throw new SalesConflictError("Stock insuficiente");
+            }
+
+            const stockAnterior = String(rows[0]!.stockAnterior);
+            const stockNuevo = String(rows[0]!.stockNuevo);
 
             await tx.stockMovement.create({
               data: {
@@ -143,8 +137,8 @@ export class PrismaSaleRepository implements SaleRepository {
                 variantId: it.variantId,
                 tipo: "VENTA",
                 cantidad: (-Number(it.quantity)).toFixed(2),
-                stockAnterior: it.stockAnterior,
-                stockNuevo: it.stockNuevo,
+                stockAnterior,
+                stockNuevo,
                 motivo: null,
                 saleId: sale.id,
                 usuarioId: input.sellerId
@@ -164,8 +158,9 @@ export class PrismaSaleRepository implements SaleRepository {
             ? ((error.meta as any).target as string[]).includes("receiptNumber")
             : String((error.meta as any)?.target ?? "").includes("receiptNumber"));
 
-        if (isUniqueReceiptConflict && attempt < maxAttempts) {
-          continue;
+        if (isUniqueReceiptConflict) {
+          if (attempt < maxAttempts) continue;
+          throw new SalesConflictError("Receipt number conflict, retry");
         }
 
         throw error;

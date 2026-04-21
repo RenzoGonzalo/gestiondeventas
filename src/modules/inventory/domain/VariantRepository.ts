@@ -49,7 +49,11 @@ export interface VariantRepository {
     usuarioId: string;
   }): Promise<{ variant: Variant; movementId: string }>;
 
-  sellerList(input: { companyId: string }): Promise<Array<{ id: string; nombre: string; precioVenta: string; stockActual: string }>>;
+  sellerList(
+    input: { companyId: string }
+  ): Promise<Array<{ id: string; nombre: string; productNombre: string; precioVenta: string; stockActual: string }>>;
 
-  sellerSearch(input: { companyId: string; q: string }): Promise<Array<{ id: string; nombre: string; precioVenta: string; stockActual: string }>>;
+  sellerSearch(
+    input: { companyId: string; q: string }
+  ): Promise<Array<{ id: string; nombre: string; productNombre: string; precioVenta: string; stockActual: string }>>;
 }

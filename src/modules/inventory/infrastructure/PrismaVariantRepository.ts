@@ -163,7 +163,9 @@ export class PrismaVariantRepository implements VariantRepository {
     return { variant: this.toDomain(result.updated), movementId: result.movementId };
   }
 
-  async sellerList(input: { companyId: string }): Promise<Array<{ id: string; nombre: string; precioVenta: string; stockActual: string }>> {
+  async sellerList(
+    input: { companyId: string }
+  ): Promise<Array<{ id: string; nombre: string; productNombre: string; precioVenta: string; stockActual: string }>> {
     const rows = await prisma.variant.findMany({
       where: {
         companyId: input.companyId,
@@ -173,6 +175,7 @@ export class PrismaVariantRepository implements VariantRepository {
       select: {
         id: true,
         nombre: true,
+        product: { select: { nombre: true } },
         precioVenta: true,
         stockActual: true
       },
@@ -182,12 +185,15 @@ export class PrismaVariantRepository implements VariantRepository {
     return rows.map((r) => ({
       id: r.id,
       nombre: r.nombre,
+      productNombre: r.product.nombre,
       precioVenta: r.precioVenta.toString(),
       stockActual: r.stockActual.toString()
     }));
   }
 
-  async sellerSearch(input: { companyId: string; q: string }): Promise<Array<{ id: string; nombre: string; precioVenta: string; stockActual: string }>> {
+  async sellerSearch(
+    input: { companyId: string; q: string }
+  ): Promise<Array<{ id: string; nombre: string; productNombre: string; precioVenta: string; stockActual: string }>> {
     const q = input.q.trim();
 
     const rows = await prisma.variant.findMany({
@@ -205,6 +211,7 @@ export class PrismaVariantRepository implements VariantRepository {
       select: {
         id: true,
         nombre: true,
+        product: { select: { nombre: true } },
         precioVenta: true,
         stockActual: true
       },
@@ -215,6 +222,7 @@ export class PrismaVariantRepository implements VariantRepository {
     return rows.map((r) => ({
       id: r.id,
       nombre: r.nombre,
+      productNombre: r.product.nombre,
       precioVenta: r.precioVenta.toString(),
       stockActual: r.stockActual.toString()
     }));
