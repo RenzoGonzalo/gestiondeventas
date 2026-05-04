@@ -7,9 +7,11 @@ export interface VariantRepository {
     companyId: string;
     productId: string;
     nombre: string;
-    sku: string;
+    // SKU puede omitirse; se autogenera en infraestructura.
+    sku?: string;
     codigoBarras?: string | null;
-    atributos: unknown;
+    // Atributos puede omitirse; se guarda como objeto vacío.
+    atributos?: unknown;
     unitType?: string;
     precioCompra: string;
     precioVenta: string;

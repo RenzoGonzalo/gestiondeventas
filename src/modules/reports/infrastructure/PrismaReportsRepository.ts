@@ -82,7 +82,7 @@ export class PrismaReportsRepository implements ReportsRepository {
       Array<{ day: Date; total: string | null; count: bigint }>
     >`
       SELECT
-        date_trunc('day', "createdAt")::date as day,
+        date_trunc('day', (("createdAt" AT TIME ZONE ${DB_TIME_ZONE}) AT TIME ZONE ${REPORT_TIME_ZONE}))::date as day,
         COALESCE(SUM(total), 0)::text as total,
         COUNT(*)::bigint as count
       FROM sales

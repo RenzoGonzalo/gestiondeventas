@@ -8,9 +8,9 @@ export class AddVariantToProductUseCase {
     productId: string;
     creadoPor: string;
     nombre: string;
-    sku: string;
+    sku?: string;
     codigoBarras?: string | null;
-    atributos: unknown;
+    atributos?: unknown;
     unitType?: string;
     precioCompra: string;
     precioVenta: string;

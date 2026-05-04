@@ -1,5 +1,5 @@
+import "./env";
 import express from "express";
-import dotenv from "dotenv";
 import cors from "cors";
 import authRouter from "./modules/users/presentation/authRouter";
 import sellersRouter from "./modules/users/presentation/sellersRouter";
@@ -9,17 +9,18 @@ import inventoryRouter from "./modules/inventory/presentation/inventoryRouter";
 import salesRouter from "./modules/sales/presentation/salesRouter";
 import reportsRouter from "./modules/reports/presentation/reports.routes";
 
-dotenv.config();
-
 const app = express();
 
-// Simplificamos la lógica del CORS
-const corsOrigin = process.env.CORS_ORIGIN || "http://localhost:5173";
+const defaultOrigins = ["https://gestionventasfrontend.vercel.app", "http://localhost:5173"];
+const allowedOrigins = String(process.env.CORS_ORIGIN || "")
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
 
 app.use(
   cors({
     // Pon tu URL de vercel EXACTA sin la barra final
-    origin: ["https://gestionventasfrontend.vercel.app", "http://localhost:5173"], 
+    origin: allowedOrigins.length ? allowedOrigins : defaultOrigins,
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization"],
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]

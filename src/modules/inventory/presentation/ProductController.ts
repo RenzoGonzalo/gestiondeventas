@@ -20,9 +20,10 @@ const createProductBodySchema = z.object({
     .array(
       z.object({
         nombre: z.string().min(1, "nombre requerido"),
-        sku: z.string().min(1, "sku requerido"),
+        // SKU puede omitirse; el backend lo autogenera.
+        sku: z.any().optional(),
         codigoBarras: z.any().optional(),
-        atributos: z.any().default({}),
+        atributos: z.any().optional().default({}),
         unitType: z.any().optional(),
         precioCompra: z.any(),
         precioVenta: z.any(),
@@ -53,6 +54,14 @@ export class ProductController {
 
       const body = validateBody(createProductBodySchema, req.body);
 
+      const variantes = (body.variantes ?? []).map((v: any, index: number) => ({
+        ...v,
+        // En el flujo simplificado las variantes pueden venir sin sku/atributos.
+        // Este endpoint soporta variantes embebidas, así que normalizamos para el use case.
+        sku: v.sku ? String(v.sku) : `SKU-${Date.now()}-${index + 1}`,
+        atributos: v.atributos ?? {}
+      }));
+
       const result = await this.createProductUseCase.execute({
         companyId,
         creadoPor: userId,
@@ -63,7 +72,7 @@ export class ProductController {
         activo: body.activo,
         atributos: body.atributos,
         unitType: body.unitType,
-        variantes: body.variantes ?? []
+        variantes
       });
 
       return res.status(201).json(result);

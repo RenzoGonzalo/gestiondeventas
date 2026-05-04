@@ -3,6 +3,39 @@ import { VariantRepository } from "../domain/VariantRepository";
 import { Variant } from "../domain/Variant";
 import { InventoryNotFoundError } from "../domain/InventoryErrors";
 
+function normalizeSku(input: string) {
+  const withoutAccents = input
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+  const cleaned = withoutAccents
+    .replace(/[^a-zA-Z0-9]+/g, "-")
+    .replace(/^-+/, "")
+    .replace(/-+$/, "")
+    .toUpperCase();
+
+  return cleaned || "SKU";
+}
+
+async function generateUniqueSku(input: { companyId: string; productId: string; base: string }) {
+  const base = normalizeSku(input.base).slice(0, 40);
+
+  for (let i = 0; i < 500; i++) {
+    const suffix = i === 0 ? "" : `-${String(i + 1).padStart(3, "0")}`;
+    const candidate = (base + suffix).slice(0, 60);
+
+    const exists = await prisma.variant.findFirst({
+      where: { companyId: input.companyId, productId: input.productId, sku: candidate },
+      select: { id: true }
+    });
+
+    if (!exists) return candidate;
+  }
+
+  // extremadamente raro: demasiados choques
+  return `SKU-${Date.now()}`;
+}
+
 export class PrismaVariantRepository implements VariantRepository {
   async listByProduct(input: { companyId: string; productId: string }): Promise<Variant[]> {
     const rows = await prisma.variant.findMany({
@@ -17,9 +50,9 @@ export class PrismaVariantRepository implements VariantRepository {
     companyId: string;
     productId: string;
     nombre: string;
-    sku: string;
+    sku?: string;
     codigoBarras?: string | null;
-    atributos: unknown;
+    atributos?: unknown;
     unitType?: string;
     precioCompra: string;
     precioVenta: string;
@@ -35,15 +68,26 @@ export class PrismaVariantRepository implements VariantRepository {
 
     if (!product) throw new InventoryNotFoundError("Product not found");
 
+    const sku = input.sku?.trim()
+      ? input.sku.trim()
+      : await generateUniqueSku({
+          companyId: input.companyId,
+          productId: input.productId,
+          base: `${product.nombre}-${input.nombre}`
+        });
+
+    const unitType = (input.unitType as any) ?? (product.unitType as any) ?? undefined;
+    const atributos = (input.atributos ?? {}) as any;
+
     const created = await prisma.variant.create({
       data: {
         companyId: input.companyId,
         productId: input.productId,
         nombre: input.nombre,
-        sku: input.sku,
+        sku,
         codigoBarras: input.codigoBarras ?? null,
-        atributos: input.atributos as any,
-        unitType: (input.unitType as any) ?? undefined,
+        atributos,
+        unitType,
         precioCompra: input.precioCompra,
         precioVenta: input.precioVenta,
         stockActual: input.stockActual ?? "0",

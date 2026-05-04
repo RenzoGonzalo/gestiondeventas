@@ -5,7 +5,7 @@ import { ITokenService } from "../domain/services/ITokenService";
 import { CompanyRepository } from "../../companies/domain/CompanyRepository";
 
 export class LoginWithGoogleUseCase {
-  private readonly oauthClient: OAuth2Client;
+  private readonly oauthClient: OAuth2Client | null;
   private readonly audience: string;
 
   constructor(
@@ -14,15 +14,16 @@ export class LoginWithGoogleUseCase {
     private readonly companyRepository: CompanyRepository
   ) {
     const clientId = String(process.env.GOOGLE_CLIENT_ID || "").trim();
-    if (!clientId) {
-      throw new Error("GOOGLE_CLIENT_ID no esta configurado");
-    }
 
     this.audience = clientId;
-    this.oauthClient = new OAuth2Client(clientId);
+    this.oauthClient = clientId ? new OAuth2Client(clientId) : null;
   }
 
   async execute(idToken: string) {
+    if (!this.oauthClient || !this.audience) {
+      throw new ForbiddenError("Google login no esta configurado");
+    }
+
     let payload: any;
     try {
       const ticket = await this.oauthClient.verifyIdToken({

@@ -6,28 +6,124 @@ import { GetTopProductsUseCase } from "../application/GetTopProductsUseCase";
 import { GetLowStockUseCase } from "../application/GetLowStockUseCase";
 import { GetSellersPerformanceUseCase } from "../application/GetSellersPerformanceUseCase";
 
-function parseDateOrUndefined(input: unknown): Date | undefined {
+const REPORT_TIME_ZONE = "America/Bogota";
+
+type YMD = { year: number; month: number; day: number };
+
+function parseYMD(input: unknown): YMD | undefined {
+  const raw = String(input ?? "").trim();
+  const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return undefined;
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  const day = Number(m[3]);
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return undefined;
+  return { year, month, day };
+}
+
+function parseQueryDayInTimeZone(input: unknown, timeZone: string): YMD | undefined {
+  const asYmd = parseYMD(input);
+  if (asYmd) return asYmd;
+
   if (input === undefined || input === null) return undefined;
   const d = new Date(String(input));
-  return Number.isNaN(d.getTime()) ? undefined : d;
+  if (Number.isNaN(d.getTime())) return undefined;
+  return getYMDInTimeZone(d, timeZone);
 }
 
-function startOfDay(d: Date) {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  return x;
+function getYMDInTimeZone(date: Date, timeZone: string): YMD {
+  const dtf = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  });
+
+  const parts = dtf.formatToParts(date);
+  const map: Record<string, string> = {};
+  for (const p of parts) map[p.type] = p.value;
+
+  return {
+    year: Number(map.year),
+    month: Number(map.month),
+    day: Number(map.day)
+  };
 }
 
-function endOfDay(d: Date) {
-  const x = new Date(d);
-  x.setHours(23, 59, 59, 999);
-  return x;
+function ymdToUtcDate(ymd: YMD): Date {
+  return new Date(Date.UTC(ymd.year, ymd.month - 1, ymd.day));
 }
 
-function daysAgo(n: number) {
-  const d = new Date();
-  d.setDate(d.getDate() - n);
-  return d;
+function addDays(ymd: YMD, delta: number): YMD {
+  const d = ymdToUtcDate(ymd);
+  d.setUTCDate(d.getUTCDate() + delta);
+  return { year: d.getUTCFullYear(), month: d.getUTCMonth() + 1, day: d.getUTCDate() };
+}
+
+function getTimeZoneOffsetMs(date: Date, timeZone: string): number {
+  const dtf = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false
+  });
+
+  const parts = dtf.formatToParts(date);
+  const map: Record<string, string> = {};
+  for (const p of parts) map[p.type] = p.value;
+
+  const asUTC = Date.UTC(
+    Number(map.year),
+    Number(map.month) - 1,
+    Number(map.day),
+    Number(map.hour),
+    Number(map.minute),
+    Number(map.second)
+  );
+
+  return asUTC - date.getTime();
+}
+
+function zonedTimeToUtc(input: {
+  ymd: YMD;
+  hour: number;
+  minute: number;
+  second: number;
+  ms: number;
+  timeZone: string;
+}): Date {
+  const guess = new Date(
+    Date.UTC(
+      input.ymd.year,
+      input.ymd.month - 1,
+      input.ymd.day,
+      input.hour,
+      input.minute,
+      input.second,
+      input.ms
+    )
+  );
+
+  const offset = getTimeZoneOffsetMs(guess, input.timeZone);
+  return new Date(guess.getTime() - offset);
+}
+
+function utcRangeForLocalDays(fromYmd: YMD, toYmd: YMD, timeZone: string): { from: Date; to: Date } {
+  let fromMs = ymdToUtcDate(fromYmd).getTime();
+  let toMs = ymdToUtcDate(toYmd).getTime();
+  if (fromMs > toMs) {
+    const tmp = fromYmd;
+    fromYmd = toYmd;
+    toYmd = tmp;
+  }
+
+  const from = zonedTimeToUtc({ ymd: fromYmd, hour: 0, minute: 0, second: 0, ms: 0, timeZone });
+  const to = zonedTimeToUtc({ ymd: toYmd, hour: 23, minute: 59, second: 59, ms: 999, timeZone });
+  return { from, to };
 }
 
 export class ReportsController {
@@ -59,11 +155,10 @@ export class ReportsController {
       const companyId = req.user?.companyId as string | null;
       if (!companyId) return res.status(403).json({ message: "No autorizado: usuario sin companyId" });
 
-      const fromQ = parseDateOrUndefined(req.query.from);
-      const toQ = parseDateOrUndefined(req.query.to);
-
-      const from = startOfDay(fromQ ?? daysAgo(6)); // último 7 días
-      const to = endOfDay(toQ ?? new Date());
+      const today = getYMDInTimeZone(new Date(), REPORT_TIME_ZONE);
+      const fromYmd = parseQueryDayInTimeZone(req.query.from, REPORT_TIME_ZONE) ?? addDays(today, -6);
+      const toYmd = parseQueryDayInTimeZone(req.query.to, REPORT_TIME_ZONE) ?? today;
+      const { from, to } = utcRangeForLocalDays(fromYmd, toYmd, REPORT_TIME_ZONE);
 
       const result = await this.getDailySalesUseCase.execute({ companyId, from, to });
       return res.status(200).json({ from, to, rows: result });
@@ -80,12 +175,12 @@ export class ReportsController {
       const companyId = req.user?.companyId as string | null;
       if (!companyId) return res.status(403).json({ message: "No autorizado: usuario sin companyId" });
 
-      const fromQ = parseDateOrUndefined(req.query.from);
-      const toQ = parseDateOrUndefined(req.query.to);
+      const today = getYMDInTimeZone(new Date(), REPORT_TIME_ZONE);
+      const fromYmd = parseQueryDayInTimeZone(req.query.from, REPORT_TIME_ZONE) ?? addDays(today, -29);
+      const toYmd = parseQueryDayInTimeZone(req.query.to, REPORT_TIME_ZONE) ?? today;
 
       const limit = Math.max(1, Math.min(50, Number(req.query.limit ?? 10) || 10));
-      const from = startOfDay(fromQ ?? daysAgo(29));
-      const to = endOfDay(toQ ?? new Date());
+      const { from, to } = utcRangeForLocalDays(fromYmd, toYmd, REPORT_TIME_ZONE);
 
       const result = await this.getTopProductsUseCase.execute({ companyId, from, to, limit });
       return res.status(200).json({ from, to, limit, rows: result });
@@ -119,12 +214,12 @@ export class ReportsController {
       const companyId = req.user?.companyId as string | null;
       if (!companyId) return res.status(403).json({ message: "No autorizado: usuario sin companyId" });
 
-      const fromQ = parseDateOrUndefined(req.query.from);
-      const toQ = parseDateOrUndefined(req.query.to);
+      const today = getYMDInTimeZone(new Date(), REPORT_TIME_ZONE);
+      const fromYmd = parseQueryDayInTimeZone(req.query.from, REPORT_TIME_ZONE) ?? addDays(today, -29);
+      const toYmd = parseQueryDayInTimeZone(req.query.to, REPORT_TIME_ZONE) ?? today;
 
       const limit = Math.max(1, Math.min(50, Number(req.query.limit ?? 10) || 10));
-      const from = startOfDay(fromQ ?? daysAgo(29));
-      const to = endOfDay(toQ ?? new Date());
+      const { from, to } = utcRangeForLocalDays(fromYmd, toYmd, REPORT_TIME_ZONE);
 
       const result = await this.getSellersPerformanceUseCase.execute({ companyId, from, to, limit });
       return res.status(200).json({ from, to, limit, rows: result });
