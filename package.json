@@ -6,7 +6,7 @@
     "dev": "tsx watch src/app.ts",
     "typecheck": "tsc --noEmit",
     "build": "tsc",
-    "start": "node dist/app.js",
+    "start": "npm run build && node dist/app.js",
     "prisma:generate": "prisma generate",
     "postinstall": "prisma generate"
   },
