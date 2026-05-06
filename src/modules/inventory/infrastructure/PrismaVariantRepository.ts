@@ -68,8 +68,9 @@ export class PrismaVariantRepository implements VariantRepository {
 
     if (!product) throw new InventoryNotFoundError("Product not found");
 
-    const sku = input.sku?.trim()
-      ? input.sku.trim()
+    const rawSku = input.sku == null ? "" : String(input.sku);
+    const sku = rawSku.trim()
+      ? rawSku.trim()
       : await generateUniqueSku({
           companyId: input.companyId,
           productId: input.productId,
